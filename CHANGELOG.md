@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- `artifacts screenshot` runs the Playwright version this package is tested with (`playwright@<devDependency>`) instead of whatever is latest; override with `ARTIFACTS_PLAYWRIGHT`.
+- Screenshot failures are JSON errors (`screenshot_failed`) with the underlying cause, an install hint when the browser is missing, and no leftover temp files. `--viewport` is validated.
+- Tests: restart and admin-command coverage, a Playwright browser suite for the gallery and viewer, and screenshot tests (`npm run test:browser`).
+
 ## 0.2.0 — 2026-11-12
 
 Fixes from a security and usability review. See `test/review.test.js`.

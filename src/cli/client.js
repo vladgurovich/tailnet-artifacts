@@ -133,24 +133,49 @@ export async function publish({ url, token, files, options, fetchImpl = fetch })
   return json;
 }
 
+// The Playwright version used for screenshots is pinned to the one this package is tested
+// with (its devDependency), so results don't change when a new Playwright is released.
+const PKG = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
+export const PLAYWRIGHT_SPEC = `playwright@${PKG.devDependencies?.playwright ?? 'latest'}`;
+
 /** Take a screenshot with the Playwright CLI (via npx) and return its path. */
 export async function screenshot(targetUrl, { mobile = false, viewport = '1280,800', fullPage = true, waitMs = 0, pkg } = {}) {
+  if (!/^\d{2,5},\d{2,5}$/.test(viewport)) {
+    throw new CliError('usage', `--viewport must look like 1280,800, got "${viewport}"`, { exitCode: 2 });
+  }
+  const spec = pkg || process.env.ARTIFACTS_PLAYWRIGHT || PLAYWRIGHT_SPEC;
   const dir = await mkdtemp(join(tmpdir(), 'artifacts-shot-'));
+  const cleanup = () => rm(dir, { recursive: true, force: true });
   const out = join(dir, 'screenshot.png');
-  const args = ['-y', pkg || process.env.ARTIFACTS_PLAYWRIGHT || 'playwright', 'screenshot', '--browser', 'chromium'];
+  const args = ['-y', spec, 'screenshot', '--browser', 'chromium'];
   // Device presets like "iPhone 15" switch to WebKit; stay on Chromium with a phone-sized viewport.
   args.push('--viewport-size', mobile ? '390,844' : viewport);
   if (fullPage) args.push('--full-page');
   if (waitMs) args.push('--wait-for-timeout', String(waitMs));
   args.push(targetUrl, out);
-  await new Promise((resolve, reject) => {
-    const p = spawn('npx', args, { stdio: ['ignore', 'ignore', 'pipe'] });
-    let stderr = '';
-    p.stderr.on('data', (d) => { stderr += d; });
-    p.on('error', reject);
-    p.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`playwright screenshot failed (exit ${code}): ${stderr.trim().slice(-800)}`))));
-  });
-  return { path: out, cleanup: () => rm(dir, { recursive: true, force: true }) };
+  try {
+    await new Promise((resolve, reject) => {
+      const p = spawn('npx', args, { stdio: ['ignore', 'ignore', 'pipe'] });
+      let stderr = '';
+      p.stderr.on('data', (d) => { stderr += d; });
+      p.on('error', (e) => reject(new CliError('screenshot_failed', `could not run npx: ${e.message}`)));
+      p.on('close', (code) => {
+        if (code === 0) return resolve();
+        const detail = stderr
+          .replace(/\x1b\[[0-9;]*m/g, '') // terminal colours
+          .replace(/[╔╗╚╝║═]+/g, '') // Playwright's box drawing
+          .replace(/\s+/g, ' ').trim().slice(-600);
+        const hint = /Executable doesn't exist|browserType\.launch/i.test(stderr)
+          ? ` Install the browser with: npx -y ${spec} install chromium`
+          : '';
+        reject(new CliError('screenshot_failed', `screenshot of ${targetUrl} failed (${spec}, exit ${code}): ${detail}${hint}`));
+      });
+    });
+  } catch (e) {
+    await cleanup();
+    throw e;
+  }
+  return { path: out, cleanup };
 }
 
 function stripNulls(o) {

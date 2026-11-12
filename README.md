@@ -118,7 +118,9 @@ root-absolute asset paths in a built app (they're also printed to stderr):
 | `--include-hidden` | Also publish dotfiles (`.env`, `.npmrc`, …) and `node_modules`, which are skipped by default |
 
 `screenshot <url>` takes a full-page screenshot with the Playwright CLI (via `npx`)
-and publishes it. Add `--mobile` for a 390×844 phone viewport, `--viewport 1440,900`,
+and publishes it. It uses the Playwright version this package is tested with; set
+`ARTIFACTS_PLAYWRIGHT` (e.g. `playwright@1.66.0`) to override. If Chromium for that
+version isn't installed, the error tells you the `npx … install chromium` command. Add `--mobile` for a 390×844 phone viewport, `--viewport 1440,900`,
 `--wait 1000`, or any publish option.
 
 **What can be published:** a single HTML file, a directory (entry `index.html`),
