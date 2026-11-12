@@ -14,10 +14,12 @@ test('install pins are updated', () => {
     'VERSION="v0.3.0"',
     'ARTIFACTS_VERSION=0.3.0',
     'image: ghcr.io/vladgurovich/tailnet-artifacts:0.3.0',
+    '[deploy/docker/](https://github.com/vladgurovich/tailnet-artifacts/tree/v0.3.0/deploy/docker)',
+    'https://github.com/vladgurovich/tailnet-artifacts/blob/v0.3.0/README.md',
   ].join('\n');
   const after = bumpPins(before, '0.3.0', '0.3.1');
   assert.ok(!after.includes('0.3.0'), after);
-  assert.equal(after.match(/0\.3\.1/g).length, 8);
+  assert.equal(after.match(/0\.3\.1/g).length, 10);
 });
 
 test('prose that mentions a version is left alone', () => {

@@ -1,7 +1,6 @@
 # Changelog
 
-## Unreleased
-
+## 0.3.1 — 2026-11-12
 **Documentation** (from a review of every doc against the code)
 - README is shorter and task-oriented: prerequisites, "Set up the server" (pointing to one recipe per platform), "Set up a publishing machine" (client prerequisites), publish reference, and summaries.
 - New `docs/configuration.md` (every setting with its config-file key, tokens and scopes, expiry rules, client settings, the HTTP API) and `docs/security.md` (adds: Funnel warning, tailnet access rules, storage limits for publish tokens, ownership by token name, tagged devices, upload memory use).

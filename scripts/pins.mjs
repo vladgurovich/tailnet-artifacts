@@ -16,6 +16,7 @@ export function bumpPins(text, old, next) {
   const rules = [
     [new RegExp(`(\\.git#v)${o}\\b`, 'g'), `$1${next}`], // npm install …git#vX
     [new RegExp(`(/tailnet-artifacts/v)${o}(/)`, 'g'), `$1${next}$2`], // raw.githubusercontent …/vX/path
+    [new RegExp(`(/(?:tree|blob)/v)${o}(/)`, 'g'), `$1${next}$2`], // github.com …/tree/vX/path
     [new RegExp(`(refs/tags/v)${o}\\b`, 'g'), `$1${next}`], // archive tarballs
     [new RegExp(`(--branch v)${o}\\b`, 'g'), `$1${next}`], // git clone --branch vX
     [new RegExp(`(checkout v)${o}\\b`, 'g'), `$1${next}`], // git checkout vX
