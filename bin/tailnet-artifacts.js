@@ -1,16 +1,22 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
 import { readFileSync } from 'node:fs';
-import { loadConfig } from '../src/config.js';
+import { loadConfig, withPublicUrl } from '../src/config.js';
 import { createApp, defaultLog } from '../src/server.js';
 import { Store } from '../src/store.js';
-import { TokenStore } from '../src/tokens.js';
+import { TokenStore, SCOPES, DEFAULT_SCOPE } from '../src/tokens.js';
 import { clientConfig, collectFiles, publish, screenshot, CliError } from '../src/cli/client.js';
+import { login, readToken, doctor, formatDoctor } from '../src/cli/setup.js';
+import { detectTailscaleUrl } from '../src/tailscale.js';
 import { formatBytes } from '../src/util.js';
 
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 const HELP = `tailnet-artifacts ${pkg.version} — versioned artifact links for your tailnet
+
+Setup (client):
+  artifacts login <server-url> [--token-stdin]   save the server URL and a token (prompted)
+  artifacts doctor [--json] [--skip-browser]     check config, server, token, versions, browser
 
 Publishing (client):
   artifacts publish <file|dir> [--name "Title"] [--to <id>] [--note "what changed"]
@@ -34,9 +40,14 @@ Server:
   tailnet-artifacts serve [--config file.json]
   tailnet-artifacts gc [--dry-run] [--config file.json]      (run while the server is stopped,
                                                               or rely on the server's hourly gc)
-  tailnet-artifacts token create <name> | list | revoke <name> [--config file.json]
+  tailnet-artifacts token create <name> [--scope publish|admin] | list | revoke <name>
+                                                             [--config file.json]
+    publish (default): create artifacts; change or delete only its own
+    admin:             change or delete any artifact
 
   Server config: see README (ARTIFACTS_DATA_DIR, ARTIFACTS_PUBLIC_URL, ARTIFACTS_OWNERS, ...)
+  ARTIFACTS_PUBLIC_URL defaults to this machine's https://<name>.<tailnet>.ts.net when
+  the tailscale CLI is available.
 `;
 
 const PUBLISH_OPTS = {
@@ -55,6 +66,8 @@ const PUBLISH_OPTS = {
 async function main(argv) {
   const [cmd, ...rest] = argv;
   switch (cmd) {
+    case 'login': return cmdLogin(rest);
+    case 'doctor': return cmdDoctor(rest);
     case 'publish': return cmdPublish(rest);
     case 'screenshot': return cmdScreenshot(rest);
     case 'serve': return cmdServe(rest);
@@ -162,7 +175,15 @@ async function cmdScreenshot(args) {
 
 async function cmdServe(args) {
   const { values } = parseArgs({ args, options: { config: { type: 'string' } } });
-  const cfg = loadConfig({ file: values.config });
+  let cfg = loadConfig({ file: values.config });
+  if (!cfg.publicUrl && cfg.identity === 'tailscale') {
+    const ts = await detectTailscaleUrl();
+    if (ts) {
+      cfg = withPublicUrl(cfg, ts.url);
+      defaultLog('info', 'detected public URL from tailscale', { publicUrl: ts.url });
+      if (!ts.httpsEnabled) defaultLog('warn', 'HTTPS certificates are not enabled for this tailnet; `tailscale serve` cannot serve https until they are');
+    }
+  }
   const app = await createApp(cfg);
   const addr = await app.listen();
   defaultLog('info', 'listening', {
@@ -170,7 +191,7 @@ async function cmdServe(args) {
     owners: cfg.owners, publicUrl: cfg.publicUrl || '(from request)', tokens: app.tokens.list().length,
   });
   if (!app.tokens.list().length) defaultLog('warn', 'no publish tokens configured; run "tailnet-artifacts token create <name>"');
-  if (!cfg.publicUrl) defaultLog('warn', 'ARTIFACTS_PUBLIC_URL is not set: only loopback Host headers are accepted, so requests through tailscale serve will get 421');
+  if (!cfg.publicUrl) defaultLog('warn', 'ARTIFACTS_PUBLIC_URL is not set and could not be detected from tailscale: only loopback Host headers are accepted, so requests through tailscale serve will get 421');
   if (!cfg.owners.length) defaultLog('warn', 'ARTIFACTS_OWNERS is empty: nobody can pin, extend or delete from the browser');
   if (cfg.host !== '127.0.0.1' && cfg.host !== '::1' && cfg.identity === 'tailscale') {
     defaultLog('warn', 'identity "tailscale" trusts Tailscale-User-* headers; only expose the server through `tailscale serve`');
@@ -200,17 +221,26 @@ async function cmdGc(args) {
 }
 
 async function cmdToken(args) {
-  const { values, positionals } = parseArgs({ args, options: { config: { type: 'string' } }, allowPositionals: true });
+  const { values, positionals } = parseArgs({
+    args,
+    options: { config: { type: 'string' }, scope: { type: 'string' } },
+    allowPositionals: true,
+  });
   const [sub, name] = positionals;
   const cfg = loadConfig({ file: values.config });
   const tokens = new TokenStore(cfg.tokensFile);
   if (sub === 'create') {
-    if (!name) throw usage('token create <name>');
-    const token = tokens.create(name);
-    console.error(`Created token "${name}". It is shown once; store it on the publishing machine:`);
+    if (!name) throw usage('token create <name> [--scope publish|admin]');
+    const scope = values.scope ?? DEFAULT_SCOPE;
+    if (!SCOPES.includes(scope)) throw usage(`--scope must be ${SCOPES.join(' or ')}`);
+    const token = tokens.create(name, scope);
+    let url = cfg.publicUrl;
+    if (!url && cfg.identity === 'tailscale') url = (await detectTailscaleUrl())?.url;
+    console.error(`Created ${scope} token "${name}". It is shown once. On the publishing machine run:\n\n`
+      + `  artifacts login ${url || '<server-url>'}\n\nand paste it when asked.\n`);
     console.log(token);
   } else if (sub === 'list') {
-    for (const n of tokens.list()) console.log(n);
+    for (const t of tokens.list()) console.log(`${t.name}\t${t.scope}`);
   } else if (sub === 'revoke') {
     if (!name) throw usage('token revoke <name>');
     if (!tokens.revoke(name)) throw new Error(`no token named "${name}"`);
@@ -218,6 +248,23 @@ async function cmdToken(args) {
   } else {
     throw usage('token create <name> | list | revoke <name>');
   }
+}
+
+async function cmdLogin(args) {
+  const { values, positionals } = parseArgs({ args, options: { 'token-stdin': { type: 'boolean' } }, allowPositionals: true });
+  if (positionals.length !== 1) throw usage('login takes the server URL, e.g. artifacts login https://artifacts.example.ts.net');
+  const token = await readToken({ piped: values['token-stdin'] || !process.stdin.isTTY });
+  const result = await login(positionals[0], { token });
+  console.error(`Logged in to ${result.url} as token "${result.token.name}" (${result.token.scope} scope).`);
+  console.log(JSON.stringify(result, null, 2));
+}
+
+async function cmdDoctor(args) {
+  const { values } = parseArgs({ args, options: { json: { type: 'boolean' }, 'skip-browser': { type: 'boolean' } } });
+  const result = await doctor({ browser: !values['skip-browser'] });
+  if (values.json) console.log(JSON.stringify(result, null, 2));
+  else process.stdout.write(formatDoctor(result));
+  if (!result.ok) process.exitCode = 1;
 }
 
 main(process.argv.slice(2)).catch((e) => {

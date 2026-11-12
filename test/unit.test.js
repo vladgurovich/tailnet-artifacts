@@ -77,13 +77,13 @@ test('token store keeps only hashes and supports revoke', async () => {
     const text = await readFile(path, 'utf8');
     assert.ok(!text.includes(t), 'plaintext token must not be stored');
     assert.equal((await stat(path)).mode & 0o777, 0o600);
-    assert.equal(ts.verify(t), 'dev-box');
+    assert.deepEqual(ts.verify(t), { name: 'dev-box', scope: 'publish' });
     assert.equal(ts.verify(`${t}x`), null);
     assert.throws(() => ts.create('dev-box'), /already exists/);
     const t2 = ts.create('mac');
     // A second instance (e.g. the running server) sees the file change.
     const reader = new TokenStore(path);
-    assert.equal(reader.verify(t2), 'mac');
+    assert.deepEqual(reader.verify(t2), { name: 'mac', scope: 'publish' });
     assert.ok(ts.revoke('dev-box'));
     assert.equal(new TokenStore(path).verify(t), null);
     assert.throws(() => ts.create('bad name'), /invalid token name/);

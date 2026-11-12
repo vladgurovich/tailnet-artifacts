@@ -1,5 +1,9 @@
 # Deploying
 
+This guide installs the server with Node.js and systemd (for example in a Proxmox
+container). For Docker with a Tailscale sidecar, see the README and
+[`deploy/docker/`](../deploy/docker/).
+
 A small Linux machine or container on your tailnet is enough: the server uses
 well under 100 MB of RAM. Disk is the real constraint; size it for
 `ARTIFACTS_MAX_DATA_SIZE` plus headroom.
@@ -39,12 +43,16 @@ systemctl daemon-reload && systemctl enable --now tailnet-artifacts
 
 ## 4. Publish tokens
 
-Create one token per publishing machine (or agent), and copy it there:
+Create one `publish` token per publishing machine (or agent). It prints the token
+once, plus the `artifacts login` command to run on that machine:
 
 ```sh
 sudo -u tailnet-artifacts env $(grep -v '^#' /etc/tailnet-artifacts.env | xargs) \
   node /opt/tailnet-artifacts/bin/tailnet-artifacts.js token create dev-box
 ```
+
+Add `--scope admin` only for a token that must manage every artifact (for example
+a cleanup job). `token list` shows names and scopes; `token revoke <name>` removes one.
 
 ## 5. Expose on the tailnet
 
@@ -53,9 +61,10 @@ tailscale serve --bg http://127.0.0.1:8790
 tailscale serve status        # shows https://artifacts.<tailnet>.ts.net
 ```
 
-Set `ARTIFACTS_PUBLIC_URL` to that address and `systemctl restart tailnet-artifacts`.
-This is required: the server only accepts requests addressed to loopback names or
-the `ARTIFACTS_PUBLIC_URL` host, and answers anything else with 421.
+The server detects this address from the `tailscale` CLI at startup (check the
+`detected public URL` log line). If it runs where the CLI isn't available, set
+`ARTIFACTS_PUBLIC_URL` to the address and restart: the server only accepts
+requests addressed to loopback names or that host, and answers anything else with 421.
 
 ## 6. Check
 
@@ -67,6 +76,8 @@ journalctl -u tailnet-artifacts -f
 From a publishing machine:
 
 ```sh
+artifacts login https://artifacts.<tailnet>.ts.net   # paste the token
+artifacts doctor
 echo '<h1>hello</h1>' > /tmp/hello.html
 artifacts publish /tmp/hello.html --name "Hello" --by me --url-only
 ```

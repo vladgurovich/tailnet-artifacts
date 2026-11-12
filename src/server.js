@@ -14,6 +14,7 @@ import { parseDuration } from './util.js';
 import * as pages from './render.js';
 
 const STATIC_DIR = join(dirname(fileURLToPath(import.meta.url)), 'static');
+export const VERSION = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')).version;
 const STATIC_FILES = new Set(['app.css', 'app.js', 'shell.js', 'icon.svg']);
 const ID_SEG = '([a-z0-9][a-z0-9-]{0,62})';
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '::1']);
@@ -118,15 +119,35 @@ export async function createApp(cfg, { log = defaultLog, now } = {}) {
     return identity.identify(req);
   }
 
+  /** { name, scope } for a valid bearer token, else null. */
   function bearer(req) {
     const m = /^Bearer\s+(\S+)$/i.exec(req.headers.authorization || '');
     return m ? tokens.verify(m[1]) : null;
   }
 
-  /** Token holders, or configured owners acting from this app's own pages (CSRF-protected). */
-  function requireManager(req) {
-    const tokenName = bearer(req);
-    if (tokenName) return { token: tokenName, login: null };
+  /** The token that created an artifact (older artifacts: the first version's token). */
+  function creatorToken(meta) {
+    return meta.createdBy?.token ?? meta.versions[0]?.publisher?.token ?? null;
+  }
+
+  /** publish-scoped tokens may only change artifacts they created; admin tokens may change any. */
+  function assertTokenMayChange(tok, id) {
+    if (tok.scope === 'admin') return;
+    const found = store.lookup(id);
+    if (found.state !== 'live') return; // the store reports 404/410 with a clearer message
+    const creator = creatorToken(found.meta);
+    if (creator !== tok.name) {
+      throw new HttpError(403, 'forbidden', `token "${tok.name}" has publish scope and can only change artifacts it created (${id} was created by ${creator ? `"${creator}"` : 'another publisher'})`);
+    }
+  }
+
+  /** Token holders (within their scope), or configured owners acting from this app's own pages (CSRF-protected). */
+  function requireManager(req, id) {
+    const tok = bearer(req);
+    if (tok) {
+      assertTokenMayChange(tok, id);
+      return { token: tok.name, login: null };
+    }
     const who = viewer(req);
     if (!who) throw new HttpError(401, 'unauthorized', 'a publish token or owner login is required');
     if (!cfg.owners.includes(who.login)) throw new HttpError(403, 'forbidden', `${who.login} is not an owner`);
@@ -182,6 +203,7 @@ export async function createApp(cfg, { log = defaultLog, now } = {}) {
       updatedAt: iso(meta.updatedAt),
       expiresAt: iso(meta.expiresAt),
       pinned: meta.pinned,
+      createdBy: { token: creatorToken(meta) },
       links: { latest: urls.artifact(meta.id), info: urls.info(meta.id) },
       versions: meta.versions.map((v) => ({
         n: v.n,
@@ -201,8 +223,9 @@ export async function createApp(cfg, { log = defaultLog, now } = {}) {
   // ---- handlers -------------------------------------------------------------
 
   async function publish(req, res, toId) {
-    const tokenName = bearer(req);
-    if (!tokenName) throw new HttpError(401, 'unauthorized', 'a valid publish token is required');
+    const tok = bearer(req);
+    if (!tok) throw new HttpError(401, 'unauthorized', 'a valid publish token is required');
+    if (toId) assertTokenMayChange(tok, toId);
     const type = (req.headers['content-type'] || '').split(';')[0].trim();
     if (type !== BUNDLE_TYPE) throw new HttpError(415, 'unsupported_type', `expected ${BUNDLE_TYPE}`);
     const body = await readBody(req, cfg.maxPublishBytes + 1024 * 1024);
@@ -221,7 +244,7 @@ export async function createApp(cfg, { log = defaultLog, now } = {}) {
       note: options.note,
       by: options.by,
       entry: options.entry,
-      publisher: { token: tokenName, login: who?.login ?? null },
+      publisher: { token: tok.name, login: who?.login ?? null },
     });
     const urls = urlsFor(req);
     sendJson(res, toId ? 200 : 201, {
@@ -402,7 +425,7 @@ export async function createApp(cfg, { log = defaultLog, now } = {}) {
     const method = req.method;
     let m;
 
-    if (path === '/healthz') return sendJson(res, 200, { ok: true, artifacts: store.list().length });
+    if (path === '/healthz') return sendJson(res, 200, { ok: true, version: VERSION, artifacts: store.list().length });
 
     if (method === 'GET' || method === 'HEAD') {
       if ((m = /^\/static\/([\w.-]+)$/.exec(path))) return serveStatic(res, m[1]);
@@ -462,13 +485,13 @@ export async function createApp(cfg, { log = defaultLog, now } = {}) {
       if (path === '/api/artifacts') return publish(req, res, null);
       if ((m = new RegExp(`^/api/artifacts/${ID_SEG}/versions$`).exec(path))) return publish(req, res, m[1]);
       if ((m = new RegExp(`^/api/artifacts/${ID_SEG}/pin$`).exec(path))) {
-        requireManager(req);
+        requireManager(req, m[1]);
         const body = await readJson(req);
         const meta = await store.setPinned(m[1], body.pinned !== false);
         return sendJson(res, 200, artifactJson(meta, urlsFor(req)));
       }
       if ((m = new RegExp(`^/api/artifacts/${ID_SEG}/extend$`).exec(path))) {
-        requireManager(req);
+        requireManager(req, m[1]);
         const body = await readJson(req);
         let ms;
         try { ms = parseDuration(body.ttl ?? '7d'); } catch (e) { throw new HttpError(400, 'bad_ttl', e.message); }
@@ -478,7 +501,7 @@ export async function createApp(cfg, { log = defaultLog, now } = {}) {
     }
 
     if (method === 'DELETE' && (m = new RegExp(`^/api/artifacts/${ID_SEG}$`).exec(path))) {
-      const actor = requireManager(req);
+      const actor = requireManager(req, m[1]);
       const r = await store.remove(m[1], 'deleted');
       log('info', 'delete requested', { id: m[1], by: actor.token ?? actor.login });
       return sendJson(res, 200, { deleted: r.id });

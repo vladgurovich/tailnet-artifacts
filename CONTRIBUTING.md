@@ -37,9 +37,16 @@ or new behavior.
 
 ## Releases
 
-1. Move the `Unreleased` section of `CHANGELOG.md` under the new version.
-2. Bump the version in `package.json`, `package-lock.json` (`npm install --package-lock-only`)
-   and the pinned install lines in `README.md` and `docs/deploy.md`.
-3. Commit, tag `vX.Y.Z`, and push the tag.
+Maintainers: add changes under `## Unreleased` in `CHANGELOG.md` as you go, then
+
+```sh
+node scripts/release.mjs 0.4.0 --push
+```
+
+The script bumps every version reference, dates the changelog section, runs the
+tests, commits, tags and pushes. The tag triggers `.github/workflows/release.yml`,
+which re-runs all tests and publishes the GitHub Release, the container image
+(`ghcr.io/vladgurovich/tailnet-artifacts`) and, when the `NPM_TOKEN` secret is set,
+the npm package with provenance.
 
 Security issues: see [SECURITY.md](SECURITY.md), not the issue tracker.

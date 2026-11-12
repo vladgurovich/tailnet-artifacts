@@ -269,6 +269,7 @@ export class Store extends EventEmitter {
           name: cleanLabel(opts.name, 120) || id,
           visibility: 'private',
           createdAt: now,
+          createdBy: { token: opts.publisher?.token ?? null, login: opts.publisher?.login ?? null },
           pinned: false,
           versions: [],
         };

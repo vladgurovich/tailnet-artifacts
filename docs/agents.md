@@ -27,7 +27,10 @@ artifacts publish <file-or-dir> --name "<short title>" --by <your agent name> --
 - Dotfiles and `node_modules` are skipped automatically. Don't use
   `--include-hidden`.
 - On failure the command exits non-zero and prints a JSON error to stderr; read
-  its `message` before retrying.
+  its `message` before retrying. For setup problems (network, token, browser), run
+  `artifacts doctor` and report what it says.
+- Exit code 3 with "publish scope" means the artifact belongs to another token:
+  publish a new artifact instead of `--to`.
 - Screenshots of a running page: `artifacts screenshot <url> --name "<title>"`
   (add `--mobile` for a 390×844 phone-sized view).
 - Artifacts expire 7 days after the last publish. Use `--keep` only when I ask

@@ -12,8 +12,7 @@ no domain, certificate or login provider to set up.
 
 > **Status: early (0.x).** It runs a real homelab day to day, but expect breaking
 > changes before 1.0. Built for one person and their own agents: everyone on the
-> tailnet can view every artifact, and every publish token can manage every
-> artifact (see [Security model](#security-model)).
+> tailnet can view every artifact (see [Security model](#security-model)).
 
 - **One small Node.js process.** No database. One dependency (`marked`).
 - **Versions.** Every publish is an immutable version. Links to the latest
@@ -54,6 +53,22 @@ e.g. `checkout-redesign-k3f9x2m8q1`.
 
 ## Install the server
 
+### With Docker (any machine)
+
+Uses the image from GitHub's container registry and the official Tailscale
+container as a sidecar, so nothing else needs installing:
+
+```sh
+curl -fsSLO https://raw.githubusercontent.com/vladgurovich/tailnet-artifacts/v0.2.1/deploy/docker/compose.yaml
+curl -fsSLO https://raw.githubusercontent.com/vladgurovich/tailnet-artifacts/v0.2.1/deploy/docker/serve.json
+curl -fsSL  https://raw.githubusercontent.com/vladgurovich/tailnet-artifacts/v0.2.1/deploy/docker/.env.example -o .env
+$EDITOR .env                      # Tailscale auth key, public URL, owner login
+docker compose up -d
+docker compose exec artifacts node /app/bin/tailnet-artifacts.js token create my-laptop
+```
+
+### With Node.js (systemd, Proxmox LXC, …)
+
 Requirements: Node.js 22 or newer, and Tailscale on the same machine.
 
 ```sh
@@ -61,17 +76,15 @@ git clone --branch v0.2.1 https://github.com/vladgurovich/tailnet-artifacts.git 
 cd /opt/tailnet-artifacts && npm ci --omit=dev
 
 export ARTIFACTS_DATA_DIR=/var/lib/tailnet-artifacts
-node bin/tailnet-artifacts.js token create my-laptop   # prints a token once
+node bin/tailnet-artifacts.js token create my-laptop   # prints a token once, and the login command
 node bin/tailnet-artifacts.js serve                    # listens on 127.0.0.1:8790
 
 sudo tailscale serve --bg http://127.0.0.1:8790         # https://<machine>.<tailnet>.ts.net
 ```
 
-Set `ARTIFACTS_PUBLIC_URL` to the address `tailscale serve status` prints. Until you
-do, the server only answers requests addressed to `localhost`/`127.0.0.1`.
-
-For a long-running setup (systemd unit, dedicated user, Proxmox container) see
-[docs/deploy.md](docs/deploy.md).
+The server reads its public address (`https://<machine>.<tailnet>.ts.net`) from the
+`tailscale` CLI; set `ARTIFACTS_PUBLIC_URL` to override it. For a long-running setup
+(systemd unit, dedicated user, Proxmox container) see [docs/deploy.md](docs/deploy.md).
 
 ## Publish
 
@@ -79,10 +92,13 @@ On any machine that can reach the server:
 
 ```sh
 npm install -g git+https://github.com/vladgurovich/tailnet-artifacts.git#v0.2.1   # provides `artifacts`
-mkdir -p ~/.config/tailnet-artifacts
-echo '{"url": "https://artifacts.<tailnet>.ts.net"}' > ~/.config/tailnet-artifacts/config.json
-echo '<token>' > ~/.config/tailnet-artifacts/token && chmod 600 ~/.config/tailnet-artifacts/token
+artifacts login https://artifacts.<tailnet>.ts.net   # paste the token; it is checked and saved
+artifacts doctor                                     # optional: checks server, token, versions, browser
 ```
+
+`login` writes `~/.config/tailnet-artifacts/config.json` and a `token` file
+readable only by you. In CI, use `ARTIFACTS_URL` and `ARTIFACTS_TOKEN` instead, or
+`artifacts login <url> --token-stdin`.
 
 ```sh
 artifacts publish ./mockup.html --name "Login redesign" --by codex
@@ -165,7 +181,7 @@ Environment variables override `--config file.json`, which overrides defaults.
 | --- | --- | --- |
 | `ARTIFACTS_DATA_DIR` | `./data` | Where artifacts, tombstones and tokens live |
 | `ARTIFACTS_HOST` / `ARTIFACTS_PORT` | `127.0.0.1` / `8790` | Listen address. Keep loopback; see Security |
-| `ARTIFACTS_PUBLIC_URL` | none | Base URL used in links, e.g. `https://artifacts.example.ts.net`. Its host is the only non-loopback `Host` accepted |
+| `ARTIFACTS_PUBLIC_URL` | from `tailscale status` | Base URL used in links, e.g. `https://artifacts.example.ts.net`. Its host is the only non-loopback `Host` accepted |
 | `ARTIFACTS_ALLOWED_HOSTS` | none | Extra comma-separated `Host` names to accept |
 | `ARTIFACTS_OWNERS` | none | Comma-separated Tailscale logins allowed to pin, extend and delete in the browser |
 | `ARTIFACTS_DEFAULT_TTL` | `7d` | Expiry after the last publish |
@@ -179,9 +195,17 @@ Environment variables override `--config file.json`, which overrides defaults.
 | `ARTIFACTS_TOKENS_FILE` | `<data>/tokens` | Hashed publish tokens |
 | `ARTIFACTS_LOG_LEVEL` | `info` | `debug` logs every request |
 
-Tokens: `tailnet-artifacts token create <name>`, `token list`, `token revoke <name>`.
-The server stores only SHA-256 hashes and picks up changes without a restart.
-Each version records the name of the token that published it.
+Tokens: `tailnet-artifacts token create <name> [--scope publish|admin]`, `token list`,
+`token revoke <name>`. The server stores only SHA-256 hashes and picks up changes
+without a restart. Each version records the name of the token that published it.
+
+| Scope | Can |
+| --- | --- |
+| `publish` (default) | create artifacts; add versions to, pin, extend and delete **only the ones it created** |
+| `admin` | all of that on **any** artifact |
+
+Create one `publish` token per machine or agent. Tokens created before v0.3.0
+have no scope and are treated as `admin`; recreate them to narrow them.
 
 ## Expiry
 
@@ -211,9 +235,10 @@ Read this before exposing the server to anyone but yourself.
   loopback or the `ARTIFACTS_PUBLIC_URL` host are refused (421), which blocks DNS
   rebinding. Any process on the same machine can still reach `127.0.0.1:8790` and
   claim an owner identity, so don't run it next to untrusted code.
-- **Publishing needs a token, and every token is all-powerful.** A token can
-  publish, add versions to any artifact, pin, extend and delete. Create one token
-  per machine or agent, so you can see who did what and revoke one at a time.
+- **Publishing needs a token; tokens are scoped.** A `publish` token (the default)
+  can only change or delete artifacts it created, so a leaked agent token cannot
+  rewrite or wipe other agents' work. `admin` tokens can change everything. Create
+  one token per machine or agent, so you can see who did what and revoke one at a time.
 - **Owner actions in the browser** (pin, extend, delete) need a Tailscale login
   listed in `ARTIFACTS_OWNERS` and a custom CSRF header that cross-site pages and
   sandboxed artifacts cannot send.

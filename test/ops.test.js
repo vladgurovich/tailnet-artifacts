@@ -33,7 +33,7 @@ function raw(path, { headers = {}, method = 'GET', base = s.base, body } = {}) {
 function cli(args, env = {}) {
   return new Promise((resolve) => {
     execFile(process.execPath, [BIN, ...args], {
-      env: { PATH: process.env.PATH, XDG_CONFIG_HOME: '/nonexistent', ...env },
+      env: { PATH: process.env.PATH, XDG_CONFIG_HOME: '/nonexistent', ARTIFACTS_TAILSCALE_BIN: '/nonexistent', ...env },
     }, (err, stdout, stderr) => resolve({ code: err ? err.code : 0, stdout, stderr }));
   });
 }
@@ -117,9 +117,13 @@ test('token create / list / revoke', async () => {
     assert.match(created.stdout.trim(), /^ta_[A-Za-z0-9_-]{43}$/);
     assert.match(created.stderr, /shown once/);
     assert.equal((await cli(['token', 'create', 'ci-runner'], env)).code, 1, 'duplicate name');
-    assert.equal((await cli(['token', 'list'], env)).stdout.trim(), 'ci-runner');
+    assert.equal((await cli(['token', 'list'], env)).stdout.trim(), 'ci-runner\tpublish', 'default scope is publish');
+    assert.equal((await cli(['token', 'create', 'ops', '--scope', 'admin'], env)).code, 0);
+    assert.equal((await cli(['token', 'create', 'x', '--scope', 'root'], env)).code, 2);
+    assert.match((await cli(['token', 'list'], env)).stdout, /ops\tadmin/);
+    assert.match(created.stderr, /artifacts login /, 'prints the login command');
     assert.equal((await cli(['token', 'revoke', 'ci-runner'], env)).code, 0);
-    assert.equal((await cli(['token', 'list'], env)).stdout.trim(), '');
+    assert.equal((await cli(['token', 'list'], env)).stdout.trim(), 'ops\tadmin');
     assert.equal((await cli(['token', 'revoke', 'nobody'], env)).code, 1);
     assert.equal((await cli(['token', 'frobnicate'], env)).code, 2);
   } finally {
@@ -156,7 +160,8 @@ test('gc --dry-run and gc against a stopped server; gc refuses while the server 
 test('serve starts, logs config warnings, serves, and exits cleanly on SIGTERM', async () => {
   const tmp = await tempDir();
   const child = spawn(process.execPath, [BIN, 'serve'], {
-    env: { PATH: process.env.PATH, ARTIFACTS_DATA_DIR: tmp.dir, ARTIFACTS_PORT: '0' },
+    // No tailscale CLI: the server must not detect a public URL from the machine it runs on.
+    env: { PATH: process.env.PATH, ARTIFACTS_DATA_DIR: tmp.dir, ARTIFACTS_PORT: '0', ARTIFACTS_TAILSCALE_BIN: '/nonexistent' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   try {
@@ -222,7 +227,7 @@ test('list and whoami APIs', async () => {
   assert.equal(owner.viewer.login, 'owner@example.com');
   assert.equal(owner.canManage, true);
   const tok = JSON.parse((await raw('/api/whoami', { headers: { Authorization: `Bearer ${s.token}` } })).body);
-  assert.equal(tok.token, 'test-publisher');
+  assert.deepEqual(tok.token, { name: 'test-publisher', scope: 'publish' });
 });
 
 test('redirects for missing trailing slashes keep the query', async () => {

@@ -97,3 +97,10 @@ export function normalize(raw) {
 function stripSlash(s) {
   return s.replace(/\/+$/, '');
 }
+
+/** Returns a copy of cfg using a detected public URL (only when none is configured). */
+export function withPublicUrl(cfg, url) {
+  if (cfg.publicUrl || !url) return cfg;
+  const host = new URL(url).hostname.toLowerCase();
+  return { ...cfg, publicUrl: url.replace(/\/+$/, ''), allowedHosts: new Set([...cfg.allowedHosts, host]) };
+}

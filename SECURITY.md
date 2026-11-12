@@ -30,6 +30,6 @@ crashing or exhausting the server, or leaking tokens.
 Out of scope, because the security model already says so:
 
 - Anyone on the tailnet (or with the machine shared to them) can view all artifacts.
-- Every publish token can manage every artifact.
+- An `admin` token can manage every artifact (that is what the scope is for).
 - Artifacts can fetch other artifacts' URLs if they know them.
 - Running the server somewhere other than behind `tailscale serve` on a dedicated host.

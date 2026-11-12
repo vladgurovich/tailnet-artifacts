@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+**Token scopes** (security)
+- Tokens have a scope: `publish` (the new default) can create artifacts but only change, pin, extend or delete the ones it created; `admin` can change any artifact. `token create --scope`, and `token list` shows scopes. Tokens from before 0.3.0 have no scope and keep full `admin` rights; recreate them to narrow them.
+- Artifacts record the token that created them (`createdBy` in the API). Older artifacts use their first version's token.
+- **API change:** `/api/whoami` returns `token` as `{ name, scope }` instead of a string.
+
+**Easier setup**
+- `artifacts login <url>`: paste (or pipe with `--token-stdin`) a token; it is checked against the server and saved with private permissions.
+- `artifacts doctor [--json]`: checks config, server reachability, token, client/server version match and the screenshot browser, with the fix for each problem.
+- The server detects its public URL from `tailscale status` when `ARTIFACTS_PUBLIC_URL` is unset, and warns if the tailnet has no HTTPS certificates.
+- `token create` prints the `artifacts login` command to run on the publishing machine.
+- `/healthz` includes the server version.
+
+**Packaging**
+- Docker image (`ghcr.io/vladgurovich/tailnet-artifacts`, amd64 and arm64; non-root, health check) and `deploy/docker/compose.yaml` with a Tailscale sidecar running `tailscale serve`.
+- Release workflow: on a version tag, re-runs all tests, then publishes the GitHub Release with changelog notes, the container image, and the npm package (when `NPM_TOKEN` is set).
+- `scripts/release.mjs` bumps every version reference, dates the changelog, tests, commits and tags.
+
 ## 0.2.1 — 2026-11-12
 
 - `artifacts screenshot` runs the Playwright version this package is tested with (`playwright@<devDependency>`) instead of whatever is latest; override with `ARTIFACTS_PLAYWRIGHT`.
