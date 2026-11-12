@@ -1,7 +1,6 @@
 # Changelog
 
-## Unreleased
-
+## 0.3.0 — 2026-11-12
 **Token scopes** (security)
 - Tokens have a scope: `publish` (the new default) can create artifacts but only change, pin, extend or delete the ones it created; `admin` can change any artifact. `token create --scope`, and `token list` shows scopes. Tokens from before 0.3.0 have no scope and keep full `admin` rights; recreate them to narrow them.
 - Artifacts record the token that created them (`createdBy` in the API). Older artifacts use their first version's token.

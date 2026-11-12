@@ -59,9 +59,9 @@ Uses the image from GitHub's container registry and the official Tailscale
 container as a sidecar, so nothing else needs installing:
 
 ```sh
-curl -fsSLO https://raw.githubusercontent.com/vladgurovich/tailnet-artifacts/v0.2.1/deploy/docker/compose.yaml
-curl -fsSLO https://raw.githubusercontent.com/vladgurovich/tailnet-artifacts/v0.2.1/deploy/docker/serve.json
-curl -fsSL  https://raw.githubusercontent.com/vladgurovich/tailnet-artifacts/v0.2.1/deploy/docker/.env.example -o .env
+curl -fsSLO https://raw.githubusercontent.com/vladgurovich/tailnet-artifacts/v0.3.0/deploy/docker/compose.yaml
+curl -fsSLO https://raw.githubusercontent.com/vladgurovich/tailnet-artifacts/v0.3.0/deploy/docker/serve.json
+curl -fsSL  https://raw.githubusercontent.com/vladgurovich/tailnet-artifacts/v0.3.0/deploy/docker/.env.example -o .env
 $EDITOR .env                      # Tailscale auth key, public URL, owner login
 docker compose up -d
 docker compose exec artifacts node /app/bin/tailnet-artifacts.js token create my-laptop
@@ -72,7 +72,7 @@ docker compose exec artifacts node /app/bin/tailnet-artifacts.js token create my
 Requirements: Node.js 22 or newer, and Tailscale on the same machine.
 
 ```sh
-git clone --branch v0.2.1 https://github.com/vladgurovich/tailnet-artifacts.git /opt/tailnet-artifacts
+git clone --branch v0.3.0 https://github.com/vladgurovich/tailnet-artifacts.git /opt/tailnet-artifacts
 cd /opt/tailnet-artifacts && npm ci --omit=dev
 
 export ARTIFACTS_DATA_DIR=/var/lib/tailnet-artifacts
@@ -91,7 +91,7 @@ The server reads its public address (`https://<machine>.<tailnet>.ts.net`) from 
 On any machine that can reach the server:
 
 ```sh
-npm install -g git+https://github.com/vladgurovich/tailnet-artifacts.git#v0.2.1   # provides `artifacts`
+npm install -g git+https://github.com/vladgurovich/tailnet-artifacts.git#v0.3.0   # provides `artifacts`
 artifacts login https://artifacts.<tailnet>.ts.net   # paste the token; it is checked and saved
 artifacts doctor                                     # optional: checks server, token, versions, browser
 ```
@@ -289,7 +289,7 @@ and `npm install -g` (the CLI) don't download it.
 The code is small on purpose: `src/store.js` (storage, versions, expiry),
 `src/server.js` (HTTP), `src/render.js` (pages), `src/cli/client.js`
 (publishing), `src/identity.js` and `src/urls.js` (extension points).
-`test/review.test.js` holds regression tests for the v0.2.1 security review.
+`test/review.test.js` holds regression tests for the v0.3.0 security review.
 
 ## License
 

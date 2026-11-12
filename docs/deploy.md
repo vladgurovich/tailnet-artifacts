@@ -35,7 +35,7 @@ tailscale up --hostname artifacts        # approve in the browser, or use --auth
 ```sh
 useradd --system --home /var/lib/tailnet-artifacts --create-home --shell /usr/sbin/nologin tailnet-artifacts
 git clone https://github.com/vladgurovich/tailnet-artifacts.git /opt/tailnet-artifacts
-cd /opt/tailnet-artifacts && git checkout v0.2.1 && npm ci --omit=dev
+cd /opt/tailnet-artifacts && git checkout v0.3.0 && npm ci --omit=dev
 cp examples/tailnet-artifacts.env /etc/tailnet-artifacts.env   # then edit it
 cp examples/systemd/tailnet-artifacts.service /etc/systemd/system/
 systemctl daemon-reload && systemctl enable --now tailnet-artifacts

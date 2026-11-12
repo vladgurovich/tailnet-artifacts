@@ -1,7 +1,7 @@
 {
   "name": "tailnet-artifacts",
-  "version": "0.2.1",
-  "description": "Self-hosted, versioned artifact links for AI agents \u2014 publish HTML, images and mockups, view them on any device in your tailnet.",
+  "version": "0.3.0",
+  "description": "Self-hosted, versioned artifact links for AI agents — publish HTML, images and mockups, view them on any device in your tailnet.",
   "keywords": [
     "tailscale",
     "tailnet",
