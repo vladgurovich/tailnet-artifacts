@@ -1,0 +1,32 @@
+[Unit]
+Description=tailnet-artifacts (versioned artifact links)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tailnet-artifacts
+Group=tailnet-artifacts
+EnvironmentFile=/etc/tailnet-artifacts.env
+WorkingDirectory=/opt/tailnet-artifacts
+ExecStart=/usr/bin/env node /opt/tailnet-artifacts/bin/tailnet-artifacts.js serve
+Restart=on-failure
+RestartSec=3
+
+# Hardening. If a directive fails inside an unprivileged container, remove it.
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/tailnet-artifacts
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictSUIDSGID=true
+LockPersonality=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

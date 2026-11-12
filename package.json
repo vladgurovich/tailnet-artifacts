@@ -1,0 +1,30 @@
+{
+  "name": "tailnet-artifacts",
+  "version": "0.1.0",
+  "description": "Self-hosted, versioned artifact links for AI agents — publish HTML, images and mockups, view them on any device in your tailnet.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "tailnet-artifacts": "bin/tailnet-artifacts.js",
+    "artifacts": "bin/tailnet-artifacts.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "examples",
+    "docs",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node bin/tailnet-artifacts.js serve",
+    "test": "node --test --test-reporter=spec test/*.test.js"
+  },
+  "dependencies": {
+    "marked": "18.2.0"
+  }
+}

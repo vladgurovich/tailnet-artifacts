@@ -1,0 +1,28 @@
+# Agent instructions
+
+Paste the block below into your agent's instructions file (`AGENTS.md` for Codex,
+`CLAUDE.md` for Claude Code, or the equivalent). Adjust the `--by` value per agent,
+or set `ARTIFACTS_BY` in the agent's environment instead.
+
+---
+
+## Sharing visual work (tailnet-artifacts)
+
+When you build or change anything visual (UI, HTML mockups, charts, diagrams,
+rendered docs) or need to show a screenshot, publish it and give me the link:
+
+```sh
+artifacts publish <file-or-dir> --name "<short title>" --by <your agent name> --note "<what this shows>"
+```
+
+- The command prints JSON. Reply with `links.latest`.
+- While iterating on the same thing, publish new versions to the same artifact
+  with `--to <id>` (the `id` from the first publish) instead of creating new ones.
+  The page I have open updates by itself.
+- Directories need an `index.html` (or pass `--entry page.html`). Built apps:
+  publish the build output (e.g. `dist/`), not the source tree.
+- Screenshots of a running page: `artifacts screenshot <url> --name "<title>"`
+  (add `--mobile` for a phone-sized view).
+- Artifacts expire 7 days after the last publish. Use `--keep` only when I ask
+  to keep something.
+- Never publish secrets, credentials, or private customer data.
