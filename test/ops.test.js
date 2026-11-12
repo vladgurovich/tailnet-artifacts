@@ -199,6 +199,11 @@ test('help, version and unknown commands', async () => {
   assert.equal(JSON.parse(bad.stderr).error, 'usage');
   assert.equal((await cli(['publish'])).code, 2, 'publish needs a path');
   assert.equal((await cli(['screenshot', 'not a url'])).code, 2);
+  for (const cmd of ['publish', 'token', 'login', 'doctor', 'serve']) {
+    const h = await cli([cmd, '--help']);
+    assert.equal(h.code, 0, `${cmd} --help`);
+    assert.match(h.stdout, /artifacts publish/);
+  }
 });
 
 // ---- 3. remaining routes ---------------------------------------------------------

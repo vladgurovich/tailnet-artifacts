@@ -55,7 +55,7 @@ export function clientConfig(env = process.env) {
 export async function collectFiles(target, {
   includeHidden = false,
   maxBytes = parseSize(process.env.ARTIFACTS_MAX_PUBLISH_SIZE || DEFAULT_MAX_BYTES),
-  maxFiles = DEFAULT_MAX_FILES,
+  maxFiles = Number(process.env.ARTIFACTS_MAX_FILES) || DEFAULT_MAX_FILES,
   onSkip = () => {},
 } = {}) {
   const st = await lstat(target).catch(() => null);

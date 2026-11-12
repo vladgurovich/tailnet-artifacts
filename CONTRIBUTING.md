@@ -43,8 +43,9 @@ Maintainers: add changes under `## Unreleased` in `CHANGELOG.md` as you go, then
 node scripts/release.mjs 0.4.0 --push
 ```
 
-The script bumps every version reference, dates the changelog section, runs the
-tests, commits, tags and pushes. The tag triggers `.github/workflows/release.yml`,
+The script updates the install pins listed in `scripts/pins.mjs` (README, docs,
+the Proxmox script, `.env.example`; never prose that merely mentions a version),
+dates the changelog section, runs the tests, commits, tags and pushes. The tag triggers `.github/workflows/release.yml`,
 which re-runs all tests and publishes the GitHub Release, the container image
 (`ghcr.io/vladgurovich/tailnet-artifacts`) and, when the `NPM_TOKEN` secret is set,
 the npm package with provenance.

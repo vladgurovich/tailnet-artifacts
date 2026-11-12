@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Creates a Proxmox LXC container running tailnet-artifacts behind `tailscale serve`.
-# Run as root on the Proxmox host:
+# Creates a Proxmox LXC container running tailnet-artifacts behind `tailscale serve`,
+# or upgrades one this script created. Run as root on an amd64 Proxmox VE host:
 #
 #   bash create-lxc.sh --owners you@example.com [--ts-authkey-file /root/ts-key]
+#   bash create-lxc.sh --upgrade <ctid> [--version vX.Y.Z]
 #
 # Without --ts-authkey-file, Tailscale prints a login link to approve the machine.
 set -euo pipefail
@@ -20,11 +21,13 @@ OWNERS=""
 TOKEN_NAME="first-publisher"
 TS_AUTHKEY_FILE=""
 USE_TAILSCALE=1
+UPGRADE_CTID=""
 NODE_MAJOR=24
 
 usage() {
   cat <<EOF
 Usage: bash create-lxc.sh [options]
+       bash create-lxc.sh --upgrade <ctid> [--version TAG]
 
   --owners LOGINS          Tailscale logins allowed to pin/extend/delete (comma-separated)
   --ts-authkey-file FILE   Tailscale auth key file (otherwise prints a login link)
@@ -38,6 +41,8 @@ Usage: bash create-lxc.sh [options]
   --version TAG            Release to install (default: ${VERSION})
   --token-name NAME        Name of the first publish token (default: first-publisher)
   --no-tailscale           Skip Tailscale (for testing; the server stays loopback-only)
+  --upgrade CTID           Upgrade the app in an existing container to --version
+                           (keeps data and config; rolls back if the new version fails)
 EOF
 }
 
@@ -55,6 +60,7 @@ while [ $# -gt 0 ]; do
     --version) VERSION="$2"; shift 2 ;;
     --token-name) TOKEN_NAME="$2"; shift 2 ;;
     --no-tailscale) USE_TAILSCALE=0; shift ;;
+    --upgrade) UPGRADE_CTID="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "unknown option: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -65,7 +71,38 @@ die() { printf 'error: %s\n' "$*" >&2; exit 1; }
 
 command -v pct >/dev/null || die "run this on a Proxmox VE host (pct not found)"
 [ "$(id -u)" = 0 ] || die "run as root"
-[[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "--version must look like v0.3.0"
+[ "$(dpkg --print-architecture)" = amd64 ] || die "only amd64 Proxmox hosts are supported (this script installs x64 Node.js builds)"
+[[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "--version must look like v1.2.3"
+curl -fsIL -o /dev/null "https://github.com/$REPO/releases/tag/$VERSION" \
+  || die "release $VERSION not found (see https://github.com/$REPO/releases)"
+
+in_ct() { pct exec "$CTID" -- env PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin LANG=C.UTF-8 DEBIAN_FRONTEND=noninteractive npm_config_update_notifier=false bash -c "$1"; }
+
+if [ -n "$UPGRADE_CTID" ]; then
+  CTID="$UPGRADE_CTID"
+  [ "$(pct status "$CTID" 2>/dev/null)" = "status: running" ] || die "container $CTID is not running"
+  in_ct 'test -f /opt/tailnet-artifacts/package.json && test -f /etc/tailnet-artifacts.env' \
+    || die "container $CTID does not look like a tailnet-artifacts install from this script"
+  FROM="$(in_ct 'cat /opt/tailnet-artifacts/VERSION 2>/dev/null || echo unknown')"
+  say "Upgrading container $CTID from $FROM to $VERSION"
+  in_ct "set -e
+rm -rf /opt/tailnet-artifacts.new && mkdir -p /opt/tailnet-artifacts.new
+curl -fsSL https://github.com/$REPO/archive/refs/tags/$VERSION.tar.gz | tar -xz -C /opt/tailnet-artifacts.new --strip-components=1
+cd /opt/tailnet-artifacts.new && npm ci --omit=dev --no-audit --no-fund --loglevel=error >/dev/null
+echo $VERSION > VERSION
+rm -rf /opt/tailnet-artifacts.prev
+mv /opt/tailnet-artifacts /opt/tailnet-artifacts.prev && mv /opt/tailnet-artifacts.new /opt/tailnet-artifacts
+cp /opt/tailnet-artifacts/examples/systemd/tailnet-artifacts.service /etc/systemd/system/
+systemctl daemon-reload && systemctl restart tailnet-artifacts"
+  if in_ct 'for _ in $(seq 1 20); do curl -fs http://127.0.0.1:8790/healthz >/dev/null && exit 0; sleep 1; done; exit 1'; then
+    say "Upgraded: $(in_ct 'curl -fs http://127.0.0.1:8790/healthz' | tr -d '\n ')"
+    echo "The previous version is kept in /opt/tailnet-artifacts.prev until the next upgrade."
+    exit 0
+  fi
+  say "Health check failed; rolling back to $FROM"
+  in_ct 'rm -rf /opt/tailnet-artifacts.failed && mv /opt/tailnet-artifacts /opt/tailnet-artifacts.failed && mv /opt/tailnet-artifacts.prev /opt/tailnet-artifacts && cp /opt/tailnet-artifacts/examples/systemd/tailnet-artifacts.service /etc/systemd/system/ && systemctl daemon-reload && systemctl restart tailnet-artifacts'
+  die "upgrade failed; rolled back. Logs: pct exec $CTID -- journalctl -u tailnet-artifacts -n 50"
+fi
 if [ -n "$TS_AUTHKEY_FILE" ]; then [ -r "$TS_AUTHKEY_FILE" ] || die "cannot read $TS_AUTHKEY_FILE"; fi
 [ -n "$CTID" ] || CTID="$(pvesh get /cluster/nextid)"
 pct status "$CTID" >/dev/null 2>&1 && die "container $CTID already exists"
@@ -93,7 +130,6 @@ EOF
 fi
 pct start "$CTID"
 
-in_ct() { pct exec "$CTID" -- env PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin LANG=C.UTF-8 DEBIAN_FRONTEND=noninteractive npm_config_update_notifier=false bash -c "$1"; }
 
 say "Waiting for the network"
 for _ in $(seq 1 30); do in_ct 'getent hosts deb.debian.org >/dev/null' && break; sleep 2; done

@@ -2,11 +2,25 @@
 
 ## Unreleased
 
-- Docker Compose: the Tailscale sidecar runs in userspace networking mode, so it no longer needs `/dev/net/tun` or `NET_ADMIN`. The same file now runs on Synology, Unraid, TrueNAS and rootless hosts. Tested on DSM 7.4.1 (DS920+).
+**Documentation** (from a review of every doc against the code)
+- README is shorter and task-oriented: prerequisites, "Set up the server" (pointing to one recipe per platform), "Set up a publishing machine" (client prerequisites), publish reference, and summaries.
+- New `docs/configuration.md` (every setting with its config-file key, tokens and scopes, expiry rules, client settings, the HTTP API) and `docs/security.md` (adds: Funnel warning, tailnet access rules, storage limits for publish tokens, ownership by token name, tagged devices, upload memory use).
+- `docs/platforms.md`: where to find your tailnet name and login, honest "tested on" notes, corrected Synology steps and volume names, Proxmox upgrade via the script, a "next step" after every recipe, more troubleshooting.
+- `docs/deploy.md`: configure before starting, so the server no longer starts with a placeholder public URL (421 errors); Node.js and data-directory notes.
+- `examples/tailnet-artifacts.env` leaves `ARTIFACTS_PUBLIC_URL` commented out (detected automatically); `.env.example` pins the image version.
+
+**Fixes**
+- `scripts/release.mjs` only updates install pins (`scripts/pins.mjs`, with tests). It used to replace every mention of the old version, which had rewritten a historical note in the README.
+- `deploy/proxmox/create-lxc.sh --upgrade <ctid> --version vX.Y.Z` upgrades in place with a health check and automatic rollback; the script checks that the release exists and that the host is amd64.
+- Every CLI command accepts `--help`. The CLI's pre-upload file limit follows `ARTIFACTS_MAX_FILES`.
+
+**Platforms**
+- Docker Compose: the Tailscale sidecar runs in userspace networking mode, so it no longer needs `/dev/net/tun` or `NET_ADMIN`. Tested on Synology DSM 7.4.1 (DS920+); it should also run on Unraid, TrueNAS and rootless hosts.
 - `deploy/proxmox/create-lxc.sh`: creates a Debian 12 LXC with Node.js, a hardened systemd service, Tailscale and `tailscale serve`, and prints the first publish token. Tested on Proxmox VE 9.1.
 - `docs/platforms.md`: recipes for Proxmox, Synology, any Docker host (including Raspberry Pi, Unraid, TrueNAS) and plain systemd, with troubleshooting.
 
 ## 0.3.0 — 2026-11-12
+
 **Token scopes** (security)
 - Tokens have a scope: `publish` (the new default) can create artifacts but only change, pin, extend or delete the ones it created; `admin` can change any artifact. `token create --scope`, and `token list` shows scopes. Tokens from before 0.3.0 have no scope and keep full `admin` rights; recreate them to narrow them.
 - Artifacts record the token that created them (`createdBy` in the API). Older artifacts use their first version's token.

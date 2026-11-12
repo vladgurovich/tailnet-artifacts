@@ -19,7 +19,7 @@ artifacts publish <file-or-dir> --name "<short title>" --by <your agent name> --
 - While iterating on the same thing, publish new versions to the same artifact
   with `--to <id>` (the `id` from the first publish) instead of creating new ones.
   The page I have open updates by itself.
-- Directories need an `index.html` (or pass `--entry page.html`). Built apps:
+- Directories need an `index.html`, or a single `.html` file, or `--entry page.html`. Built apps:
   publish the build output (e.g. `dist/`), not the source tree, and build with
   relative asset paths (`vite build --base ./`). If `publish` prints a
   `warning:` about root-absolute paths, rebuild and publish again.

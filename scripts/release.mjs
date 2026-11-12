@@ -2,12 +2,13 @@
 //
 // 1. Checks the working tree is clean and on main.
 // 2. Bumps package.json / package-lock.json.
-// 3. Replaces the pinned v<old> install references in README.md and docs/deploy.md.
+// 3. Updates install pins (see scripts/pins.mjs) — never prose that mentions a version.
 // 4. Turns "## Unreleased" in CHANGELOG.md into "## <version> — <date>".
 // 5. Runs the unit tests, commits, and creates an annotated tag.
 // 6. With --push, pushes main and the tag (which triggers the Release workflow).
 import { readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { PIN_FILES, bumpPins } from './pins.mjs';
 
 const [version, ...flags] = process.argv.slice(2);
 const push = flags.includes('--push');
@@ -29,9 +30,13 @@ if (!/^## Unreleased\s*$/m.test(changelog)) fail('CHANGELOG.md has no "## Unrele
 const today = new Date().toISOString().slice(0, 10);
 writeFileSync('CHANGELOG.md', changelog.replace(/^## Unreleased\s*$/m, `## ${version} — ${today}`));
 
-for (const file of ['README.md', 'docs/deploy.md']) {
+for (const file of PIN_FILES) {
   const text = readFileSync(file, 'utf8');
-  writeFileSync(file, text.replaceAll(`v${old}`, `v${version}`));
+  const bumped = bumpPins(text, old, version);
+  if (bumped !== text) {
+    writeFileSync(file, bumped);
+    console.log(`release: updated pins in ${file}`);
+  }
 }
 
 run('npm', ['version', version, '--no-git-tag-version'], { stdio: 'ignore' });

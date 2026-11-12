@@ -27,7 +27,9 @@ Publishing (client):
                                [--no-full-page] [--wait 1000] [publish options...]
 
   Client config: ARTIFACTS_URL, ARTIFACTS_TOKEN, ARTIFACTS_BY
-                 or ~/.config/tailnet-artifacts/{config.json,token}
+                 or ~/.config/tailnet-artifacts/{config.json,token} (written by login)
+  Limits checked before upload: ARTIFACTS_MAX_PUBLISH_SIZE (50MB), ARTIFACTS_MAX_FILES (2000)
+  Durations (--ttl): 30m, 12h, 7d, 2w.  --wait is in milliseconds.
 
   Directories: dotfiles (.env, .npmrc, …) and node_modules are skipped unless
   --include-hidden. Built apps must use relative asset paths (Vite: --base ./).
@@ -36,7 +38,8 @@ Publishing (client):
   stderr and exit code 2 usage, 3 auth, 4 conflict, 5 not found/expired,
   6 too large/storage full, 7 network, 1 other.
 
-Server:
+Server (on a git, Docker or Proxmox install, run these as
+  node <install dir>/bin/tailnet-artifacts.js <command>):
   tailnet-artifacts serve [--config file.json]
   tailnet-artifacts gc [--dry-run] [--config file.json]      (run while the server is stopped,
                                                               or rely on the server's hourly gc)
@@ -65,6 +68,10 @@ const PUBLISH_OPTS = {
 
 async function main(argv) {
   const [cmd, ...rest] = argv;
+  if (rest.includes('--help') || rest.includes('-h')) {
+    process.stdout.write(HELP);
+    return;
+  }
   switch (cmd) {
     case 'login': return cmdLogin(rest);
     case 'doctor': return cmdDoctor(rest);
@@ -190,7 +197,7 @@ async function cmdServe(args) {
     address: `${addr.address}:${addr.port}`, dataDir: cfg.dataDir, identity: cfg.identity,
     owners: cfg.owners, publicUrl: cfg.publicUrl || '(from request)', tokens: app.tokens.list().length,
   });
-  if (!app.tokens.list().length) defaultLog('warn', 'no publish tokens configured; run "tailnet-artifacts token create <name>"');
+  if (!app.tokens.list().length) defaultLog('warn', 'no publish tokens configured; create one with the "token create <name>" command (see docs/configuration.md#tokens)');
   if (!cfg.publicUrl) defaultLog('warn', 'ARTIFACTS_PUBLIC_URL is not set and could not be detected from tailscale: only loopback Host headers are accepted, so requests through tailscale serve will get 421');
   if (!cfg.owners.length) defaultLog('warn', 'ARTIFACTS_OWNERS is empty: nobody can pin, extend or delete from the browser');
   if (cfg.host !== '127.0.0.1' && cfg.host !== '::1' && cfg.identity === 'tailscale') {

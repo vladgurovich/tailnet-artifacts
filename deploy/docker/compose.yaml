@@ -1,6 +1,6 @@
-# tailnet-artifacts with a Tailscale sidecar.
+# tailnet-artifacts with a Tailscale sidecar. Full guide: docs/platforms.md
 #
-#   cp .env.example .env    # then fill in TS_AUTHKEY, ARTIFACTS_PUBLIC_URL, ARTIFACTS_OWNERS
+#   cp .env.example .env    # then fill in TS_AUTHKEY, TS_HOSTNAME, ARTIFACTS_PUBLIC_URL, ARTIFACTS_OWNERS
 #   docker compose up -d
 #   docker compose exec artifacts node /app/bin/tailnet-artifacts.js token create my-laptop
 #
@@ -8,8 +8,8 @@
 # 127.0.0.1 and is only reachable through `tailscale serve` (HTTPS, tailnet-only).
 #
 # Tailscale runs in userspace networking mode: `tailscale serve` only needs inbound
-# connections, so no /dev/net/tun device or NET_ADMIN capability is required. That
-# makes this file work unchanged on Synology, Unraid, TrueNAS and rootless hosts.
+# connections, so no /dev/net/tun device or NET_ADMIN capability is required, which
+# lets the same file run on Synology and other NAS or rootless hosts.
 services:
   tailscale:
     image: tailscale/tailscale:stable

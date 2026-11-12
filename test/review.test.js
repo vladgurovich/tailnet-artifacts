@@ -158,6 +158,12 @@ test('#6 CLI skips dotfiles and node_modules unless asked, and checks limits fir
     assert.deepEqual(all.map((f) => f.path).sort(), ['.env', '.npmrc', 'index.html', 'node_modules/x/i.js', 'sub/.hidden', 'sub/ok.css']);
     await assert.rejects(collectFiles(d, { maxBytes: 1 }), (e) => e instanceof CliError && e.exitCode === 6);
     await assert.rejects(collectFiles(d, { maxFiles: 1 }), (e) => e instanceof CliError && e.code === 'too_many_files');
+    process.env.ARTIFACTS_MAX_FILES = '1';
+    try {
+      await assert.rejects(collectFiles(d), (e) => e.code === 'too_many_files', 'client file limit follows ARTIFACTS_MAX_FILES');
+    } finally {
+      delete process.env.ARTIFACTS_MAX_FILES;
+    }
     await assert.rejects(collectFiles(join(d, 'missing')), (e) => e.exitCode === 2);
   } finally {
     await tmp.cleanup();
