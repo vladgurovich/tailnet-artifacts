@@ -53,6 +53,9 @@ e.g. `checkout-redesign-k3f9x2m8q1`.
 
 ## Install the server
 
+Step-by-step recipes for **Proxmox, Synology, Raspberry Pi, Unraid, TrueNAS** and
+plain Docker hosts are in [docs/platforms.md](docs/platforms.md).
+
 ### With Docker (any machine)
 
 Uses the image from GitHub's container registry and the official Tailscale

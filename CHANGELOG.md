@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Docker Compose: the Tailscale sidecar runs in userspace networking mode, so it no longer needs `/dev/net/tun` or `NET_ADMIN`. The same file now runs on Synology, Unraid, TrueNAS and rootless hosts. Tested on DSM 7.4.1 (DS920+).
+- `deploy/proxmox/create-lxc.sh`: creates a Debian 12 LXC with Node.js, a hardened systemd service, Tailscale and `tailscale serve`, and prints the first publish token. Tested on Proxmox VE 9.1.
+- `docs/platforms.md`: recipes for Proxmox, Synology, any Docker host (including Raspberry Pi, Unraid, TrueNAS) and plain systemd, with troubleshooting.
+
 ## 0.3.0 — 2026-11-12
 **Token scopes** (security)
 - Tokens have a scope: `publish` (the new default) can create artifacts but only change, pin, extend or delete the ones it created; `admin` can change any artifact. `token create --scope`, and `token list` shows scopes. Tokens from before 0.3.0 have no scope and keep full `admin` rights; recreate them to narrow them.
