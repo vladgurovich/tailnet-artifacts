@@ -1,6 +1,6 @@
 {
   "name": "tailnet-artifacts",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Self-hosted, versioned artifact links for AI agents — publish HTML, images and mockups, view them on any device in your tailnet.",
   "license": "MIT",
   "type": "module",

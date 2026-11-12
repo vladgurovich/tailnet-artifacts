@@ -47,7 +47,8 @@ test('publish returns links; shell, info and content are served with the right h
   const shell = await raw(`/a/${r.id}/`);
   assert.equal(shell.status, 200);
   assert.match(shell.headers['content-security-policy'], /frame-ancestors 'none'/);
-  assert.match(shell.headers['content-security-policy'], /script-src 'self';/);
+  assert.match(shell.headers['content-security-policy'], /script-src 'nonce-[A-Za-z0-9+/=]+';/);
+  assert.ok(!/script-src[^;]*'self'/.test(shell.headers['content-security-policy']), 'uploaded .js must not be allowed on trusted pages');
   assert.equal(shell.headers['x-frame-options'], 'DENY');
   assert.match(shell.body, /<iframe id="frame"[^>]+sandbox="allow-scripts/);
   assert.ok(!shell.body.includes('<h1>Hello</h1>'), 'trusted page never inlines content');

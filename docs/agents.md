@@ -20,7 +20,14 @@ artifacts publish <file-or-dir> --name "<short title>" --by <your agent name> --
   with `--to <id>` (the `id` from the first publish) instead of creating new ones.
   The page I have open updates by itself.
 - Directories need an `index.html` (or pass `--entry page.html`). Built apps:
-  publish the build output (e.g. `dist/`), not the source tree.
+  publish the build output (e.g. `dist/`), not the source tree, and build with
+  relative asset paths (`vite build --base ./`). If `publish` prints a
+  `warning:` about root-absolute paths, rebuild and publish again.
+- Artifacts run sandboxed: `localStorage`, IndexedDB and cookies are unavailable.
+- Dotfiles and `node_modules` are skipped automatically. Don't use
+  `--include-hidden`.
+- On failure the command exits non-zero and prints a JSON error to stderr; read
+  its `message` before retrying.
 - Screenshots of a running page: `artifacts screenshot <url> --name "<title>"`
   (add `--mobile` for a 390×844 phone-sized view).
 - Artifacts expire 7 days after the last publish. Use `--keep` only when I ask

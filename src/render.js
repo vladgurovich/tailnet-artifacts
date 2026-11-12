@@ -3,8 +3,11 @@
 import { Marked } from 'marked';
 import { escapeHtml as h, formatBytes } from './util.js';
 
-const KIND_ICON = { html: '◧', site: '◨', image: '◩', pdf: '▤', markdown: '¶', file: '▢' };
-const KIND_LABEL = { html: 'HTML', site: 'Site', image: 'Image', pdf: 'PDF', markdown: 'Markdown', file: 'File' };
+const KIND_ICON = { html: '◧', site: '◨', image: '◩', pdf: '▤', markdown: '¶', text: '≡', file: '▢' };
+const KIND_LABEL = { html: 'HTML', site: 'Site', image: 'Image', pdf: 'PDF', markdown: 'Markdown', text: 'Text', file: 'File' };
+
+// Replaced per response with a fresh CSP nonce (see sendPage in server.js).
+export const NONCE_PLACEHOLDER = '__TA_CSP_NONCE__';
 
 function layout({ title, body, scripts = [], bodyClass = '' }) {
   return `<!doctype html>
@@ -19,7 +22,7 @@ function layout({ title, body, scripts = [], bodyClass = '' }) {
 </head>
 <body class="${h(bodyClass)}">
 ${body}
-${scripts.map((s) => `<script src="/static/${h(s)}" defer></script>`).join('\n')}
+${scripts.map((s) => `<script nonce="${NONCE_PLACEHOLDER}" src="/static/${h(s)}" defer></script>`).join('\n')}
 </body>
 </html>`;
 }
@@ -92,7 +95,7 @@ export function shellPage({ meta, n, follow, urls, canManage }) {
   const options = [...meta.versions].reverse().map((x) =>
     `<option value="${x.n}"${x.n === n ? ' selected' : ''}>v${x.n}${x.n === meta.current ? ' (latest)' : ''}</option>`).join('');
   const body = `<header class="bar" id="shell"
-  data-id="${h(meta.id)}" data-current="${meta.current}" data-n="${n}" data-follow="${follow ? '1' : '0'}"
+  data-id="${h(meta.id)}" data-current="${meta.current}" data-n="${n}" data-kind="${h(v.kind)}" data-follow="${follow ? '1' : '0'}"
   data-version-base="${h(urls.version(meta.id, 0).replace(/0\/$/, ''))}">
   <a class="back" href="/" title="All artifacts" aria-label="All artifacts">←</a>
   <span class="name" title="${h(meta.name)}">${h(meta.name)}</span>
@@ -182,4 +185,14 @@ export function fileContent(name, entry, size) {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${h(name)}</title><style>${CONTENT_CSS}body{display:grid;place-items:center;min-height:100vh;text-align:center}</style></head>
 <body><div><p><strong>${h(entry)}</strong><br>${formatBytes(size)}</p><p><a href="${h(href)}" download>Download</a></p></div></body></html>`;
+}
+
+export function textContent(name, entry, text, truncated) {
+  const href = entry.split('/').map(encodeURIComponent).join('/');
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${h(name)}</title><style>${CONTENT_CSS}
+header{position:sticky;top:0;display:flex;gap:1rem;justify-content:space-between;padding:.5rem 1rem;font-size:13px;background:Canvas;border-bottom:1px solid #8883}
+pre{margin:0;padding:1rem;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;overflow-wrap:anywhere}</style></head>
+<body><header><strong>${h(entry)}</strong><a href="${h(href)}" target="_blank" rel="noopener">Raw</a></header>
+<pre>${h(text)}</pre>${truncated ? `<p style="padding:0 1rem 2rem">Truncated — <a href="${h(href)}" target="_blank" rel="noopener">open the full file</a>.</p>` : ''}</body></html>`;
 }

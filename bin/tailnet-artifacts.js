@@ -5,7 +5,7 @@ import { loadConfig } from '../src/config.js';
 import { createApp, defaultLog } from '../src/server.js';
 import { Store } from '../src/store.js';
 import { TokenStore } from '../src/tokens.js';
-import { clientConfig, collectFiles, publish, screenshot } from '../src/cli/client.js';
+import { clientConfig, collectFiles, publish, screenshot, CliError } from '../src/cli/client.js';
 import { formatBytes } from '../src/util.js';
 
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
@@ -16,11 +16,19 @@ Publishing (client):
   artifacts publish <file|dir> [--name "Title"] [--to <id>] [--note "what changed"]
                                [--by <agent or source>] [--ttl 30d | --keep]
                                [--entry page.html] [--expected-version N] [--url-only]
+                               [--include-hidden]
   artifacts screenshot <url>   [--name "Title"] [--to <id>] [--mobile] [--viewport 1280,800]
                                [--no-full-page] [--wait 1000] [publish options...]
 
   Client config: ARTIFACTS_URL, ARTIFACTS_TOKEN, ARTIFACTS_BY
                  or ~/.config/tailnet-artifacts/{config.json,token}
+
+  Directories: dotfiles (.env, .npmrc, …) and node_modules are skipped unless
+  --include-hidden. Built apps must use relative asset paths (Vite: --base ./).
+
+  Output: JSON on stdout (warnings also on stderr). On failure: JSON error on
+  stderr and exit code 2 usage, 3 auth, 4 conflict, 5 not found/expired,
+  6 too large/storage full, 7 network, 1 other.
 
 Server:
   tailnet-artifacts serve [--config file.json]
@@ -41,6 +49,7 @@ const PUBLISH_OPTS = {
   entry: { type: 'string' },
   'expected-version': { type: 'string' },
   'url-only': { type: 'boolean' },
+  'include-hidden': { type: 'boolean' },
 };
 
 async function main(argv) {
@@ -61,9 +70,7 @@ async function main(argv) {
 }
 
 function usage(msg) {
-  const e = new Error(`${msg}\n\nRun "artifacts help" for usage.`);
-  e.exitCode = 2;
-  return e;
+  return new CliError('usage', `${msg} (run "artifacts help" for usage)`, { exitCode: 2 });
 }
 
 function publishOptions(values) {
@@ -77,11 +84,32 @@ function publishOptions(values) {
     ttl: values.ttl,
     keep: values.keep,
     entry: values.entry,
-    expectedVersion: values['expected-version'] != null ? Number(values['expected-version']) : undefined,
+    expectedVersion: parseExpected(values['expected-version']),
   };
 }
 
+function parseExpected(v) {
+  if (v == null) return undefined;
+  if (!/^[1-9]\d*$/.test(v)) throw usage(`--expected-version must be a positive integer, got "${v}"`);
+  return Number(v);
+}
+
+function collectOptions(values) {
+  return {
+    includeHidden: values['include-hidden'],
+    onSkip: (p) => { skipped.push(p); },
+  };
+}
+const skipped = [];
+
+function reportSkipped() {
+  if (!skipped.length) return;
+  const shown = skipped.slice(0, 5).join(', ');
+  process.stderr.write(`note: skipped ${skipped.length} hidden path(s): ${shown}${skipped.length > 5 ? ', …' : ''} (use --include-hidden to publish them)\n`);
+}
+
 function printResult(result, urlOnly) {
+  for (const w of result.warnings ?? []) process.stderr.write(`warning: ${w}\n`);
   if (urlOnly) console.log(result.links.latest);
   else console.log(JSON.stringify(result, null, 2));
 }
@@ -89,9 +117,11 @@ function printResult(result, urlOnly) {
 async function cmdPublish(args) {
   const { values, positionals } = parseArgs({ args, options: PUBLISH_OPTS, allowPositionals: true });
   if (positionals.length !== 1) throw usage('publish takes exactly one file or directory');
-  const files = await collectFiles(positionals[0]);
+  const options = publishOptions(values);
+  const files = await collectFiles(positionals[0], collectOptions(values));
+  reportSkipped();
   const cc = clientConfig();
-  const result = await publish({ url: cc.url, token: cc.token, files, options: publishOptions(values) });
+  const result = await publish({ url: cc.url, token: cc.token, files, options });
   printResult(result, values['url-only']);
 }
 
@@ -109,6 +139,8 @@ async function cmdScreenshot(args) {
   });
   if (positionals.length !== 1) throw usage('screenshot takes exactly one URL');
   const target = positionals[0];
+  try { new URL(target); } catch { throw usage(`not a URL: ${target}`); }
+  const options = publishOptions(values);
   const shot = await screenshot(target, {
     mobile: values.mobile,
     viewport: values.viewport,
@@ -117,7 +149,7 @@ async function cmdScreenshot(args) {
   });
   try {
     const files = await collectFiles(shot.path);
-    const opts = publishOptions(values);
+    const opts = options;
     if (!opts.name && !opts.to) opts.name = `Screenshot ${new URL(target).host}${new URL(target).pathname}`.replace(/\/$/, '');
     if (!opts.note) opts.note = `Screenshot of ${target}${values.mobile ? ' (mobile)' : ''}`;
     const cc = clientConfig();
@@ -138,6 +170,8 @@ async function cmdServe(args) {
     owners: cfg.owners, publicUrl: cfg.publicUrl || '(from request)', tokens: app.tokens.list().length,
   });
   if (!app.tokens.list().length) defaultLog('warn', 'no publish tokens configured; run "tailnet-artifacts token create <name>"');
+  if (!cfg.publicUrl) defaultLog('warn', 'ARTIFACTS_PUBLIC_URL is not set: only loopback Host headers are accepted, so requests through tailscale serve will get 421');
+  if (!cfg.owners.length) defaultLog('warn', 'ARTIFACTS_OWNERS is empty: nobody can pin, extend or delete from the browser');
   if (cfg.host !== '127.0.0.1' && cfg.host !== '::1' && cfg.identity === 'tailscale') {
     defaultLog('warn', 'identity "tailscale" trusts Tailscale-User-* headers; only expose the server through `tailscale serve`');
   }
@@ -187,7 +221,9 @@ async function cmdToken(args) {
 }
 
 main(process.argv.slice(2)).catch((e) => {
-  if (e.body) console.error(JSON.stringify(e.body, null, 2));
-  else console.error(`error: ${e.message}`);
-  process.exit(e.exitCode ?? 1);
+  const err = e instanceof CliError
+    ? { error: e.code, message: e.message, ...(e.status ? { status: e.status } : {}), ...(e.body && typeof e.body === 'object' ? { details: e.body } : {}) }
+    : { error: e.code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION' || e.code?.startsWith?.('ERR_PARSE_ARGS') ? 'usage' : 'error', message: e.message };
+  console.error(JSON.stringify(err));
+  process.exit(e.exitCode ?? (err.error === 'usage' ? 2 : 1));
 });

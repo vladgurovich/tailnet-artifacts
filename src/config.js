@@ -26,6 +26,8 @@ export const DEFAULTS = Object.freeze({
   owners: [],
   // File with publish tokens, one per line: "<name> sha256:<hex>". Defaults to <dataDir>/tokens.
   tokensFile: '',
+  // Extra Host names accepted besides loopback and the publicUrl/contentOrigin hosts.
+  allowedHosts: [],
 });
 
 const ENV = {
@@ -44,6 +46,7 @@ const ENV = {
   ARTIFACTS_IDENTITY: 'identity',
   ARTIFACTS_OWNERS: 'owners',
   ARTIFACTS_TOKENS_FILE: 'tokensFile',
+  ARTIFACTS_ALLOWED_HOSTS: 'allowedHosts',
 };
 
 export function loadConfig({ file, env = process.env, overrides = {} } = {}) {
@@ -57,10 +60,10 @@ export function loadConfig({ file, env = process.env, overrides = {} } = {}) {
   return normalize(raw);
 }
 
+const list = (v) => (Array.isArray(v) ? v : String(v || '').split(','))
+  .map((s) => String(s).trim().toLowerCase()).filter(Boolean);
+
 export function normalize(raw) {
-  const owners = Array.isArray(raw.owners)
-    ? raw.owners
-    : String(raw.owners || '').split(',');
   const dataDir = resolve(raw.dataDir);
   const cfg = {
     dataDir,
@@ -76,9 +79,16 @@ export function normalize(raw) {
     maxDataBytes: parseSize(raw.maxDataSize),
     gcIntervalMs: parseDuration(raw.gcInterval),
     identity: raw.identity,
-    owners: owners.map((s) => s.trim().toLowerCase()).filter(Boolean),
+    owners: list(raw.owners),
     tokensFile: raw.tokensFile ? resolve(raw.tokensFile) : resolve(dataDir, 'tokens'),
+    allowedHosts: new Set(list(raw.allowedHosts)),
   };
+  for (const u of [cfg.publicUrl, cfg.contentOrigin]) {
+    if (!u) continue;
+    let host;
+    try { host = new URL(u).hostname; } catch { throw new Error(`invalid URL: ${u}`); }
+    cfg.allowedHosts.add(host.toLowerCase());
+  }
   if (!Number.isInteger(cfg.port) || cfg.port < 0 || cfg.port > 65535) throw new Error(`invalid port: ${raw.port}`);
   if (!['tailscale', 'none'].includes(cfg.identity)) throw new Error(`unknown identity adapter: ${cfg.identity}`);
   return cfg;

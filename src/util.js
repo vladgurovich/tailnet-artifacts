@@ -42,14 +42,22 @@ export function slugify(s) {
 }
 
 const B36 = '0123456789abcdefghijklmnopqrstuvwxyz';
-export function randomSuffix(len = 4) {
-  const bytes = randomBytes(len);
+export const SUFFIX_LEN = 10; // ~51 bits: IDs are not guessable
+
+/** Unbiased base36 random string (rejection sampling). */
+export function randomSuffix(len = SUFFIX_LEN) {
   let out = '';
-  for (const b of bytes) out += B36[b % 36];
+  while (out.length < len) {
+    for (const b of randomBytes(len * 2)) {
+      if (b < 252) out += B36[b % 36]; // 252 = 7 * 36
+      if (out.length === len) break;
+    }
+  }
   return out;
 }
 
-export const ID_RE = /^[a-z0-9](?:[a-z0-9-]{0,40}[a-z0-9])?-[a-z0-9]{4}$/;
+// Accepts 4-char suffixes from v0.1 artifacts as well as current 10-char ones.
+export const ID_RE = /^[a-z0-9](?:[a-z0-9-]{0,40}[a-z0-9])?-[a-z0-9]{4,16}$/;
 
 export function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({

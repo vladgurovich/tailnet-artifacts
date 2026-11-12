@@ -31,7 +31,7 @@ tailscale up --hostname artifacts        # approve in the browser, or use --auth
 ```sh
 useradd --system --home /var/lib/tailnet-artifacts --create-home --shell /usr/sbin/nologin tailnet-artifacts
 git clone https://github.com/vladgurovich/tailnet-artifacts.git /opt/tailnet-artifacts
-cd /opt/tailnet-artifacts && git checkout v0.1.0 && npm ci --omit=dev
+cd /opt/tailnet-artifacts && git checkout v0.2.0 && npm ci --omit=dev
 cp examples/tailnet-artifacts.env /etc/tailnet-artifacts.env   # then edit it
 cp examples/systemd/tailnet-artifacts.service /etc/systemd/system/
 systemctl daemon-reload && systemctl enable --now tailnet-artifacts
@@ -53,8 +53,9 @@ tailscale serve --bg http://127.0.0.1:8790
 tailscale serve status        # shows https://artifacts.<tailnet>.ts.net
 ```
 
-Set `ARTIFACTS_PUBLIC_URL` to that address so returned links are absolute and
-stable, then `systemctl restart tailnet-artifacts`.
+Set `ARTIFACTS_PUBLIC_URL` to that address and `systemctl restart tailnet-artifacts`.
+This is required: the server only accepts requests addressed to loopback names or
+the `ARTIFACTS_PUBLIC_URL` host, and answers anything else with 421.
 
 ## 6. Check
 

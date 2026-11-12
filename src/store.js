@@ -24,6 +24,11 @@ export class HttpError extends Error {
 const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.avif']);
 const HTML_EXT = new Set(['.html', '.htm']);
 const MD_EXT = new Set(['.md', '.markdown']);
+export const TEXT_EXT = new Set([
+  '.txt', '.log', '.json', '.jsonl', '.ndjson', '.csv', '.tsv', '.yaml', '.yml', '.toml', '.ini', '.xml',
+  '.diff', '.patch', '.sql', '.sh', '.js', '.mjs', '.ts', '.tsx', '.jsx', '.py', '.rb', '.go', '.rs',
+  '.java', '.kt', '.c', '.h', '.cpp', '.css', '.env.example',
+]);
 
 export function detectKind(files, entryHint) {
   if (files.length === 1 && !entryHint) {
@@ -33,6 +38,7 @@ export function detectKind(files, entryHint) {
     if (IMAGE_EXT.has(ext)) return { kind: 'image', entry: p };
     if (ext === '.pdf') return { kind: 'pdf', entry: p };
     if (MD_EXT.has(ext)) return { kind: 'markdown', entry: p };
+    if (TEXT_EXT.has(ext)) return { kind: 'text', entry: p };
     return { kind: 'file', entry: p };
   }
   const paths = new Set(files.map((f) => f.path));
@@ -45,6 +51,21 @@ export function detectKind(files, entryHint) {
   const htmls = [...paths].filter((p) => HTML_EXT.has(extname(p).toLowerCase()));
   if (htmls.length === 1) return { kind: 'site', entry: htmls[0] };
   throw new HttpError(400, 'no_entry', 'directory has no index.html; pass --entry <file>');
+}
+
+// src="/assets/x.js", href="/style.css" — but not protocol-relative "//cdn…".
+const ROOT_ABSOLUTE_RE = /\b(?:src|href)\s*=\s*["']?\/(?!\/)[^"'\s>]*/gi;
+
+/** Warn about HTML that loads assets from the site root, which breaks under /a/<id>/v/<n>/. */
+export function buildWarnings(files, kind, entry) {
+  if (kind !== 'html' && kind !== 'site') return [];
+  const html = files.find((f) => f.path === entry)?.data.subarray(0, 1024 * 1024).toString('utf8') ?? '';
+  const hits = [...new Set((html.match(ROOT_ABSOLUTE_RE) ?? []).map((m) => m.replace(/^\w+\s*=\s*["']?/, '')))];
+  if (!hits.length) return [];
+  const sample = hits.slice(0, 3).join(', ');
+  return [`${entry} references root-absolute paths (${sample}${hits.length > 3 ? ', …' : ''}). `
+    + 'Artifacts are served under /a/<id>/v/<n>/, so these will 404. Build with a relative base '
+    + '(Vite: --base ./, CRA: "homepage": ".", Next: output: "export" + assetPrefix: "./").'];
 }
 
 export class Store extends EventEmitter {
@@ -63,6 +84,8 @@ export class Store extends EventEmitter {
     this.metas = new Map();
     this.tombstones = new Map();
     this.locks = new Map();
+    this.pendingIds = new Set();
+    this.reservedBytes = 0;
   }
 
   async init() {
@@ -126,7 +149,12 @@ export class Store extends EventEmitter {
     return n;
   }
 
-  /** Resolve a file inside a version. Returns { path, size } or null. Never follows symlinks. */
+  /**
+   * Resolve a file inside a version. relPath '' means the version's entry.
+   * Returns { path, rel, size, mtimeMs, viaDir } or null. A directory resolves to its
+   * index.html with viaDir=true (the caller redirects to add a trailing slash).
+   * The store never creates symlinks; the final open uses O_NOFOLLOW.
+   */
   async resolveFile(id, n, relPath) {
     const meta = this.metas.get(id);
     const version = meta?.versions.find((v) => v.n === n);
@@ -137,13 +165,15 @@ export class Store extends EventEmitter {
     let full = join(base, rel);
     if (!full.startsWith(base + sep)) return null;
     let st = await lstat(full).catch(() => null);
+    let viaDir = false;
     if (st?.isDirectory()) {
+      viaDir = true;
       rel = `${rel}/index.html`;
       full = join(full, 'index.html');
       st = await lstat(full).catch(() => null);
     }
     if (!st?.isFile()) return null;
-    return { path: full, rel, size: st.size };
+    return { path: full, rel, size: st.size, mtimeMs: st.mtimeMs, viaDir };
   }
 
   // ---- mutations ----------------------------------------------------------
@@ -155,12 +185,15 @@ export class Store extends EventEmitter {
   async publish(files, opts = {}) {
     this.#validateFiles(files);
     const incoming = files.reduce((s, f) => s + f.data.length, 0);
-    if (this.totalBytes() + incoming > this.cfg.maxDataBytes) {
-      throw new HttpError(507, 'storage_full', 'artifact storage is full; delete or let artifacts expire first');
-    }
     const { kind, entry } = detectKind(files, opts.entry);
-    const ttlMs = this.#ttl(opts.ttlMs);
-    const now = this.now();
+    const explicitTtl = opts.ttlMs != null ? this.#ttl(opts.ttlMs) : null;
+    let expected = null;
+    if (opts.expectedVersion != null) {
+      expected = Number(opts.expectedVersion);
+      if (!Number.isInteger(expected) || expected < 1) {
+        throw new HttpError(400, 'bad_expected_version', `expectedVersion must be a positive integer, got ${JSON.stringify(opts.expectedVersion)}`);
+      }
+    }
 
     let id = opts.to;
     if (id) {
@@ -172,13 +205,29 @@ export class Store extends EventEmitter {
       id = this.#newId(opts.name);
     }
 
-    return this.#withLock(id, async () => {
+    // Reserve storage up front so concurrent publishes cannot overshoot the cap together.
+    if (this.totalBytes() + this.reservedBytes + incoming > this.cfg.maxDataBytes) {
+      if (!opts.to) this.pendingIds.delete(id);
+      throw new HttpError(507, 'storage_full', 'artifact storage is full; delete or let artifacts expire first');
+    }
+    this.reservedBytes += incoming;
+    try {
+      return await this.#withLock(id, () => this.#publishLocked(id, files, opts, { kind, entry, explicitTtl, expected, incoming }));
+    } finally {
+      this.reservedBytes -= incoming;
+      this.pendingIds.delete(id);
+    }
+  }
+
+  async #publishLocked(id, files, opts, { kind, entry, explicitTtl, expected, incoming }) {
+    {
+      const now = this.now();
       const existing = this.metas.get(id);
       if (opts.to && (!existing || this.isExpired(existing))) {
         throw new HttpError(410, 'gone', `artifact ${id} has expired or was deleted; publish a new one`);
       }
-      if (existing && opts.expectedVersion != null && Number(opts.expectedVersion) !== existing.current) {
-        throw new HttpError(409, 'conflict', `artifact ${id} is at version ${existing.current}, not ${opts.expectedVersion}`, { current: existing.current });
+      if (existing && expected != null && expected !== existing.current) {
+        throw new HttpError(409, 'conflict', `artifact ${id} is at version ${existing.current}, not ${expected}`, { current: existing.current });
       }
       const n = existing ? existing.current + 1 : 1;
 
@@ -228,14 +277,19 @@ export class Store extends EventEmitter {
       meta.current = n;
       meta.updatedAt = now;
       if (opts.keep) meta.pinned = true;
+      // A new version keeps the artifact's TTL unless one is given explicitly,
+      // and without an explicit TTL it never moves the expiry earlier.
+      const ttlMs = explicitTtl ?? existing?.ttlMs ?? this.cfg.defaultTtlMs;
       meta.ttlMs = ttlMs;
-      meta.expiresAt = meta.pinned ? null : now + ttlMs;
+      let expiresAt = now + ttlMs;
+      if (explicitTtl == null && existing?.expiresAt != null) expiresAt = Math.max(expiresAt, existing.expiresAt);
+      meta.expiresAt = meta.pinned ? null : expiresAt;
 
       await this.#writeMeta(meta);
       this.log('info', 'published', { id, version: n, kind, files: files.length, size: incoming, by: version.by, token: version.publisher.token });
-      this.emit('published', { id, version: n });
-      return { meta, version };
-    });
+      this.emit('published', { id, version: n, kind });
+      return { meta, version, warnings: buildWarnings(files, kind, entry) };
+    }
   }
 
   async setPinned(id, pinned) {
@@ -330,8 +384,11 @@ export class Store extends EventEmitter {
   #newId(name) {
     const base = slugify(name);
     for (let i = 0; i < 20; i++) {
-      const id = `${base}-${randomSuffix(4)}`;
-      if (!this.metas.has(id) && !this.tombstones.has(id)) return id;
+      const id = `${base}-${randomSuffix()}`;
+      if (!this.metas.has(id) && !this.tombstones.has(id) && !this.pendingIds.has(id)) {
+        this.pendingIds.add(id); // reserved until the publish finishes
+        return id;
+      }
     }
     throw new HttpError(500, 'id_exhausted', 'could not allocate an artifact id');
   }

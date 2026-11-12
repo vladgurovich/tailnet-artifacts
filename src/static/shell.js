@@ -9,6 +9,7 @@
   const base = shell.dataset.versionBase;
   let follow = shell.dataset.follow === '1';
   let current = Number(shell.dataset.current);
+  const kind = shell.dataset.kind;
 
   live.hidden = !follow;
 
@@ -28,11 +29,14 @@
     notify.t = setTimeout(() => { toast.hidden = true; }, 3500);
   }
 
+  // Switching versions reloads the shell: another version may be a different kind
+  // (and need a different frame sandbox).
   select.addEventListener('change', () => {
     const n = Number(select.value);
-    follow = n === current;
-    live.hidden = !follow;
-    show(n);
+    const url = new URL(location.href);
+    if (n === current) url.searchParams.delete('v');
+    else url.searchParams.set('v', String(n));
+    location.href = url.toString();
   });
 
   function addOption(n) {
@@ -46,10 +50,16 @@
     const es = new EventSource(`/api/artifacts/${encodeURIComponent(id)}/events`);
     es.addEventListener('open', () => { retry = 1000; });
     es.addEventListener('published', (e) => {
-      const { version } = JSON.parse(e.data);
+      const data = JSON.parse(e.data);
+      const version = data.version;
       if (version <= current) return;
       current = version;
       addOption(version);
+      // The frame's sandbox depends on the kind (PDFs cannot be sandboxed): rebuild the page.
+      if (follow && data.kind && data.kind !== kind) {
+        location.reload();
+        return;
+      }
       if (follow) {
         show(version);
         notify(`Updated to v${version}`);
@@ -61,8 +71,15 @@
       es.close();
       location.reload();
     });
-    es.addEventListener('error', () => {
+    es.addEventListener('error', async () => {
       es.close();
+      // Expired or deleted: reload so the server shows the "gone" page instead of retrying forever.
+      const status = await fetch(`/api/artifacts/${encodeURIComponent(id)}`, { method: 'HEAD' })
+        .then((r) => r.status, () => 0);
+      if (status === 404 || status === 410) {
+        location.reload();
+        return;
+      }
       setTimeout(connect, retry);
       retry = Math.min(retry * 2, 30000);
     });

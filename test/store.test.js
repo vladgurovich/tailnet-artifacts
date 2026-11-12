@@ -29,7 +29,7 @@ test('publish, version, conflict, ttl', async () => {
   const { store, clock, tmp } = await makeStore();
   try {
     const r1 = await store.publish([file('index.html', 'v1')], { name: 'Login Redesign', by: 'codex', publisher: { token: 'dev-box' } });
-    assert.match(r1.meta.id, /^login-redesign-[a-z0-9]{4}$/);
+    assert.match(r1.meta.id, /^login-redesign-[a-z0-9]{10}$/);
     assert.equal(r1.version.n, 1);
     assert.equal(r1.version.by, 'codex');
     assert.equal(r1.meta.visibility, 'private');
