@@ -1,7 +1,6 @@
 # Changelog
 
-## Unreleased
-
+## 0.4.0 — 2026-11-12
 - **Share** button on every gallery card and in the viewer toolbar, with the platform's standard share icon (box-and-arrow on Apple devices, connected dots elsewhere). Opens the system share sheet via the Web Share API, or copies the link and shows "Link copied". In the viewer it shares the version you're looking at. Icon-only on phones so card actions stay on one row.
 - README: desktop screenshots. `scripts/screenshots.mjs` regenerates all README images from neutral demo content.
 
