@@ -23,6 +23,9 @@ npm run coverage       # both, with a coverage report
 CI runs both suites; please make sure they pass and add a test for every bug fix
 or new behavior.
 
+After a visible UI change, regenerate the README images with
+`node scripts/screenshots.mjs` (neutral demo content, phone and desktop).
+
 ## Principles
 
 - **One runtime dependency.** The server and CLI use Node's standard library plus

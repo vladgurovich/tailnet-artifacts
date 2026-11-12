@@ -48,12 +48,34 @@ function sourceLine(v) {
   return bits.join(' · ');
 }
 
+// The two platform-standard share icons; CSS shows the one matching the device
+// (app.js / shell.js set html.apple on Apple platforms).
+const SHARE_ICONS = `<svg class="share-icon share-apple" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M8.5 10H6a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1h-2.5"/></svg>`
+  + `<svg class="share-icon share-other" viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4"/></svg>`;
+
+/** Share button. data-url/data-title feed the Web Share API (or the copy fallback). */
+function shareButton(url, title, { label = true, cls = '' } = {}) {
+  return `<button type="button" class="share ${cls}" data-share-url="${h(url)}" data-share-title="${h(title)}" aria-label="Share" title="Share link">${SHARE_ICONS}${label ? '<span>Share</span>' : ''}</button>`;
+}
+
+function ownerButtons(meta) {
+  return `<button type="button" data-action="${meta.pinned ? 'unpin' : 'pin'}">${meta.pinned ? 'Unpin' : 'Pin'}</button>
+  ${meta.pinned ? '' : '<button type="button" data-action="extend">+7 days</button>'}
+  <button type="button" class="danger" data-action="delete">Delete</button>`;
+}
+
 function ownerControls(meta, canManage) {
   if (!canManage) return '';
   return `<div class="actions" data-id="${h(meta.id)}">
-  <button type="button" data-action="${meta.pinned ? 'unpin' : 'pin'}">${meta.pinned ? 'Unpin' : 'Pin'}</button>
-  ${meta.pinned ? '' : '<button type="button" data-action="extend">+7 days</button>'}
-  <button type="button" class="danger" data-action="delete">Delete</button>
+  ${ownerButtons(meta)}
+</div>`;
+}
+
+/** Gallery card actions: Share for everyone, owner buttons for owners. */
+function cardActions(meta, canManage, shareUrl) {
+  return `<div class="actions" data-id="${h(meta.id)}">
+  ${shareButton(shareUrl, meta.name)}
+  ${canManage ? ownerButtons(meta) : ''}
 </div>`;
 }
 
@@ -68,7 +90,7 @@ export function galleryPage({ items, urls, viewer, canManage, totalBytes, maxByt
   <div class="meta">
     <a class="title" href="${h(urls.artifact(m.id))}">${h(m.name)}</a>
     <div class="sub"><span class="kind">${KIND_LABEL[v.kind] ?? v.kind}</span> · <a href="${h(urls.info(m.id))}">v${m.current}</a> · ${time(m.updatedAt)}${sourceLine(v) ? ` · ${sourceLine(v)}` : ''}</div>
-    <div class="row">${expiryBadge(m, now)}${ownerControls(m, canManage)}</div>
+    <div class="row">${expiryBadge(m, now)}${cardActions(m, canManage, urls.artifact(m.id))}</div>
   </div>
 </li>`;
   }).join('\n');
@@ -80,11 +102,12 @@ export function galleryPage({ items, urls, viewer, canManage, totalBytes, maxByt
 <main>
 ${items.length ? `<ul class="grid">${cards}</ul>` : `<div class="empty"><p>No artifacts yet.</p><p class="hint">Publish one with <code>artifacts publish ./mockup.html --name "My mockup"</code></p></div>`}
 </main>
+<div id="toast" class="toast" role="status" hidden></div>
 <footer class="foot">
   <span>${items.length} artifact${items.length === 1 ? '' : 's'}</span>
   <span class="usage" title="${pct}% of storage used"><meter min="0" max="100" low="70" high="90" optimum="0" value="${pct}"></meter>${formatBytes(totalBytes)} of ${formatBytes(maxBytes)}</span>
 </footer>`;
-  return layout({ title: 'Artifacts', body, scripts: ['app.js'] });
+  return layout({ title: 'Artifacts', body, scripts: ['app.js', 'share.js'] });
 }
 
 export function shellPage({ meta, n, follow, urls, canManage }) {
@@ -101,12 +124,13 @@ export function shellPage({ meta, n, follow, urls, canManage }) {
   <span class="name" title="${h(meta.name)}">${h(meta.name)}</span>
   <select id="ver" aria-label="Version">${options}</select>
   <span class="live" id="live" hidden title="Following latest version">● live</span>
+  ${shareButton(follow ? urls.artifact(meta.id) : urls.viewVersion(meta.id, n), meta.name, { label: false, cls: 'bar-share' })}
   <a class="link" href="${h(urls.info(meta.id))}" title="Versions and details">Info</a>
   <a class="link" href="${h(src)}" target="_blank" rel="noopener" title="Open without the toolbar">Open ↗</a>
 </header>
 <div id="toast" class="toast" hidden></div>
 <iframe id="frame" title="${h(meta.name)}" src="${h(src)}"${sandbox} referrerpolicy="no-referrer"></iframe>`;
-  return layout({ title: meta.name, body, scripts: ['shell.js'], bodyClass: 'shell' + (canManage ? ' manage' : '') });
+  return layout({ title: meta.name, body, scripts: ['shell.js', 'share.js'], bodyClass: 'shell' + (canManage ? ' manage' : '') });
 }
 
 export function infoPage({ meta, urls, canManage, now }) {

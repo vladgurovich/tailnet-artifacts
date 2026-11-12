@@ -15,7 +15,7 @@ import * as pages from './render.js';
 
 const STATIC_DIR = join(dirname(fileURLToPath(import.meta.url)), 'static');
 export const VERSION = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')).version;
-const STATIC_FILES = new Set(['app.css', 'app.js', 'shell.js', 'icon.svg']);
+const STATIC_FILES = new Set(['app.css', 'app.js', 'shell.js', 'share.js', 'icon.svg']);
 const ID_SEG = '([a-z0-9][a-z0-9-]{0,62})';
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '::1']);
 const TEXT_PREVIEW_BYTES = 2 * 1024 * 1024;

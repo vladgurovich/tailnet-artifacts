@@ -191,3 +191,56 @@ test('built sites with relative assets and nested pages work in the viewer', asy
     await close();
   }
 });
+
+test('share uses the system share sheet when the browser has one', async () => {
+  const r = await pub([file('index.html', html('<h1>share me</h1>'))], { name: 'Shareable' });
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await context.addInitScript(() => {
+    window.__shared = [];
+    Object.defineProperty(navigator, 'share', { configurable: true, value: async (data) => { window.__shared.push(data); } });
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(`${s.base}/`);
+    await page.locator(`.card:has-text("Shareable") button.share`).click();
+    assert.deepEqual(await page.evaluate(() => window.__shared), [{ title: 'Shareable', url: `${s.base}/a/${r.id}/` }]);
+
+    await page.goto(`${s.base}/a/${r.id}/`);
+    await page.locator('button.bar-share').click();
+    assert.deepEqual((await page.evaluate(() => window.__shared)).at(-1), { title: 'Shareable', url: `${s.base}/a/${r.id}/` });
+  } finally {
+    await context.close();
+  }
+});
+
+test('share falls back to copying the link, and shows the platform icon', async () => {
+  const r = await pub([file('index.html', html('<h1>copy me</h1>'))], { name: 'Copyable' });
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: s.base });
+  await context.addInitScript(() => {
+    Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
+    Object.defineProperty(navigator, 'platform', { configurable: true, get: () => 'Win32' });
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(`${s.base}/`);
+    const btn = page.locator(`.card:has-text("Copyable") button.share`);
+    assert.ok(await btn.locator('.share-other').isVisible(), 'three-dots icon off Apple platforms');
+    assert.equal(await btn.locator('.share-apple').isVisible(), false);
+    await btn.click();
+    await page.locator('#toast', { hasText: 'Link copied' }).waitFor();
+    assert.equal(await page.evaluate(() => navigator.clipboard.readText()), `${s.base}/a/${r.id}/`);
+  } finally {
+    await context.close();
+  }
+
+  const mac = await browser.newContext();
+  await mac.addInitScript(() => Object.defineProperty(navigator, 'platform', { configurable: true, get: () => 'MacIntel' }));
+  const p2 = await mac.newPage();
+  try {
+    await p2.goto(`${s.base}/`);
+    assert.ok(await p2.locator(`.card:has-text("Copyable") .share-apple`).isVisible(), 'box-and-arrow icon on Apple platforms');
+  } finally {
+    await mac.close();
+  }
+});

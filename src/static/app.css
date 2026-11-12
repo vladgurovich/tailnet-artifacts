@@ -100,3 +100,17 @@ body.shell { height: 100vh; height: 100dvh; display: flex; flex-direction: colum
   position: fixed; left: 50%; transform: translateX(-50%); bottom: max(18px, env(safe-area-inset-bottom));
   background: var(--fg); color: var(--bg); padding: 7px 14px; border-radius: 999px; font-size: 13px; z-index: 10;
 }
+
+/* share buttons */
+button.share { display: inline-flex; align-items: center; gap: 5px; }
+.share-icon { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.share-apple { display: none; }
+html.apple .share-apple { display: block; }
+html.apple .share-other { display: none; }
+.bar button.bar-share { border: 0; padding: 4px; color: var(--accent); }
+.bar button.bar-share .share-icon { width: 20px; height: 20px; }
+@media (max-width: 480px) {
+  /* Icon-only Share on phones so card actions stay on one row. */
+  button.share > span { display: none; }
+  button.share { padding: 3px 7px; }
+}

@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- **Share** button on every gallery card and in the viewer toolbar, with the platform's standard share icon (box-and-arrow on Apple devices, connected dots elsewhere). Opens the system share sheet via the Web Share API, or copies the link and shows "Link copied". In the viewer it shares the version you're looking at. Icon-only on phones so card actions stay on one row.
+- README: desktop screenshots. `scripts/screenshots.mjs` regenerates all README images from neutral demo content.
+
 ## 0.3.1 — 2026-11-12
 **Documentation** (from a review of every doc against the code)
 - README is shorter and task-oriented: prerequisites, "Set up the server" (pointing to one recipe per platform), "Set up a publishing machine" (client prerequisites), publish reference, and summaries.

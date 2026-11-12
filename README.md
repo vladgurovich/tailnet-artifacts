@@ -10,6 +10,15 @@ no domain, certificate or login provider to set up.
 
 ![Gallery and viewer on a phone](docs/images/overview.png)
 
+<details>
+<summary>On a desktop</summary>
+
+![Gallery on a desktop browser](docs/images/desktop-gallery.png)
+
+![Viewer on a desktop browser](docs/images/desktop-viewer.png)
+
+</details>
+
 > **Status: early (0.x).** It runs a real homelab day to day, but expect breaking
 > changes before 1.0. Built for one person or a small team and their own agents:
 > everyone on the tailnet can view every artifact (see [Security](#security)).
@@ -160,8 +169,11 @@ fails. Every command accepts `--help`.
 
 ## Manage artifacts
 
-Owners (Tailscale logins in `ARTIFACTS_OWNERS`) get **Pin**, **+7 days** and
-**Delete** buttons in the gallery and on each artifact's info page. Tokens can do
+Everyone can **Share** an artifact from its gallery card or the viewer toolbar: it
+opens the system share sheet (phones, Safari) or copies the link. Recipients need
+access to your tailnet to open it. Owners (Tailscale logins in `ARTIFACTS_OWNERS`)
+also get **Pin**, **+7 days** and **Delete** buttons in the gallery and on each
+artifact's info page. Tokens can do
 the same within their scope through the [HTTP API](docs/configuration.md#http-api).
 
 ## Configuration

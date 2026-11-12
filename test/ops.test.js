@@ -267,3 +267,22 @@ test('malformed requests get clear 4xx errors', async () => {
     await small.stop();
   }
 });
+
+test('share buttons: on every gallery card and in the viewer, with the right link', async () => {
+  const r = await pub([file('index.html', 'x')], { name: 'Share <me>' });
+  await pub([file('index.html', 'y')], { to: r.id });
+  const anon = await raw('/');
+  const card = new RegExp(`data-share-url="${s.base}/a/${r.id}/" data-share-title="Share &lt;me&gt;"`);
+  assert.match(anon.body, card, 'visible to non-owners, title escaped');
+  assert.match(anon.body, /class="share-icon share-apple"[\s\S]*class="share-icon share-other"/, 'both platform icons');
+  assert.match(anon.body, /<script nonce="[^"]+" src="\/static\/share\.js"/);
+  assert.match((await raw('/', { headers: OWNER })).body, card);
+
+  const latest = await raw(`/a/${r.id}/`);
+  assert.match(latest.body, new RegExp(`class="share bar-share" data-share-url="${s.base}/a/${r.id}/"`));
+  const pinned = await raw(`/a/${r.id}/?v=1`);
+  assert.match(pinned.body, new RegExp(`class="share bar-share" data-share-url="${s.base}/a/${r.id}/\\?v=1"`), 'an older version shares its own link');
+  const js = await raw('/static/share.js');
+  assert.equal(js.status, 200);
+  assert.match(js.body, /navigator\.share/);
+});
