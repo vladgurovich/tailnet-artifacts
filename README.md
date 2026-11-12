@@ -8,6 +8,13 @@ agent publishes a new version, the open page updates by itself.
 Think "Claude Artifacts", but for any agent or tool, on your own hardware, with
 no domain, certificate or login provider to set up.
 
+![Gallery and viewer on a phone](docs/images/overview.png)
+
+> **Status: early (0.x).** It runs a real homelab day to day, but expect breaking
+> changes before 1.0. Built for one person and their own agents: everyone on the
+> tailnet can view every artifact, and every publish token can manage every
+> artifact (see [Security model](#security-model)).
+
 - **One small Node.js process.** No database. One dependency (`marked`).
 - **Versions.** Every publish is an immutable version. Links to the latest
   version follow new publishes; links to a specific version never change.
@@ -50,7 +57,7 @@ e.g. `checkout-redesign-k3f9x2m8q1`.
 Requirements: Node.js 22 or newer, and Tailscale on the same machine.
 
 ```sh
-git clone --branch v0.2.0 https://github.com/vladgurovich/tailnet-artifacts.git /opt/tailnet-artifacts
+git clone --branch v0.2.1 https://github.com/vladgurovich/tailnet-artifacts.git /opt/tailnet-artifacts
 cd /opt/tailnet-artifacts && npm ci --omit=dev
 
 export ARTIFACTS_DATA_DIR=/var/lib/tailnet-artifacts
@@ -71,7 +78,7 @@ For a long-running setup (systemd unit, dedicated user, Proxmox container) see
 On any machine that can reach the server:
 
 ```sh
-npm install -g git+https://github.com/vladgurovich/tailnet-artifacts.git#v0.2.0   # provides `artifacts`
+npm install -g git+https://github.com/vladgurovich/tailnet-artifacts.git#v0.2.1   # provides `artifacts`
 mkdir -p ~/.config/tailnet-artifacts
 echo '{"url": "https://artifacts.<tailnet>.ts.net"}' > ~/.config/tailnet-artifacts/config.json
 echo '<token>' > ~/.config/tailnet-artifacts/token && chmod 600 ~/.config/tailnet-artifacts/token
@@ -257,8 +264,12 @@ and `npm install -g` (the CLI) don't download it.
 The code is small on purpose: `src/store.js` (storage, versions, expiry),
 `src/server.js` (HTTP), `src/render.js` (pages), `src/cli/client.js`
 (publishing), `src/identity.js` and `src/urls.js` (extension points).
-`test/review.test.js` holds regression tests for the v0.2.0 security review.
+`test/review.test.js` holds regression tests for the v0.2.1 security review.
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE). Security reports: see [SECURITY.md](SECURITY.md). Contributions:
+see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+Not affiliated with or endorsed by Tailscale Inc. "Tailscale" and "tailnet" refer
+to their product; this project just runs on it.

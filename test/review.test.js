@@ -170,7 +170,7 @@ test('#7 IDs are long and random; v0.1 IDs still route', () => {
   const seen = new Set(Array.from({ length: 2000 }, () => randomSuffix()));
   assert.equal(seen.size, 2000);
   for (const x of seen) assert.match(x, /^[a-z0-9]{10}$/);
-  assert.ok(ID_RE.test('hello-from-pve-dev-s50j'), 'old 4-char suffix');
+  assert.ok(ID_RE.test('hello-world-s50j'), 'old 4-char suffix');
   assert.ok(ID_RE.test('artifact-k3f9x2m8q1'));
 });
 

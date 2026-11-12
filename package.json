@@ -1,8 +1,29 @@
 {
   "name": "tailnet-artifacts",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Self-hosted, versioned artifact links for AI agents \u2014 publish HTML, images and mockups, view them on any device in your tailnet.",
+  "keywords": [
+    "tailscale",
+    "tailnet",
+    "ai-agents",
+    "artifacts",
+    "claude-code",
+    "codex",
+    "self-hosted",
+    "mockups",
+    "preview",
+    "cli"
+  ],
+  "homepage": "https://github.com/vladgurovich/tailnet-artifacts#readme",
+  "bugs": {
+    "url": "https://github.com/vladgurovich/tailnet-artifacts/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vladgurovich/tailnet-artifacts.git"
+  },
   "license": "MIT",
+  "author": "Vladimir Gurovich (https://github.com/vladgurovich)",
   "type": "module",
   "bin": {
     "tailnet-artifacts": "bin/tailnet-artifacts.js",
@@ -12,10 +33,11 @@
     "bin",
     "src",
     "examples",
-    "docs",
+    "docs/**/*.md",
     "README.md",
     "LICENSE",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "SECURITY.md"
   ],
   "engines": {
     "node": ">=22"
