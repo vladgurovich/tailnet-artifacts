@@ -22,7 +22,7 @@ artifacts publish <file-or-dir> --name "<short title>" --by <your agent name> --
 - Directories need an `index.html` (or pass `--entry page.html`). Built apps:
   publish the build output (e.g. `dist/`), not the source tree.
 - Screenshots of a running page: `artifacts screenshot <url> --name "<title>"`
-  (add `--mobile` for a phone-sized view).
+  (add `--mobile` for a 390×844 phone-sized view).
 - Artifacts expire 7 days after the last publish. Use `--keep` only when I ask
   to keep something.
 - Never publish secrets, credentials, or private customer data.

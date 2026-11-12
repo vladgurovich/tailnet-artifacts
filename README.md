@@ -111,7 +111,7 @@ artifacts screenshot http://localhost:5173 --mobile --name "Home (mobile)"
 | `--url-only` | Print only the latest link |
 
 `screenshot <url>` takes a full-page screenshot with the Playwright CLI (via `npx`)
-and publishes it. Add `--mobile` for an iPhone-sized viewport, `--viewport 1440,900`,
+and publishes it. Add `--mobile` for a 390×844 phone viewport, `--viewport 1440,900`,
 `--wait 1000`, or any publish option.
 
 **What can be published:** a single HTML file, a directory (entry `index.html`),

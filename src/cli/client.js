@@ -76,8 +76,8 @@ export async function screenshot(targetUrl, { mobile = false, viewport = '1280,8
   const dir = await mkdtemp(join(tmpdir(), 'artifacts-shot-'));
   const out = join(dir, 'screenshot.png');
   const args = ['-y', pkg || process.env.ARTIFACTS_PLAYWRIGHT || 'playwright', 'screenshot', '--browser', 'chromium'];
-  if (mobile) args.push('--device', 'iPhone 15');
-  else args.push('--viewport-size', viewport);
+  // Device presets like "iPhone 15" switch to WebKit; stay on Chromium with a phone-sized viewport.
+  args.push('--viewport-size', mobile ? '390,844' : viewport);
   if (fullPage) args.push('--full-page');
   if (waitMs) args.push('--wait-for-timeout', String(waitMs));
   args.push(targetUrl, out);

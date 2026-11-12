@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1 — 2026-11-12
+
+- `artifacts screenshot --mobile` now uses a 390×844 Chromium viewport. The iPhone device preset switched to WebKit, which is often not installed.
+
 ## 0.1.0 — 2026-11-12
 
 First release.
