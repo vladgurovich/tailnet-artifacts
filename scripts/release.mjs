@@ -11,7 +11,8 @@ import { execFileSync } from 'node:child_process';
 
 const [version, ...flags] = process.argv.slice(2);
 const push = flags.includes('--push');
-const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], ...opts }).trim();
+// stdout is null when a caller passes stdio 'ignore' or 'inherit'.
+const run = (cmd, args, opts = {}) => (execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], ...opts }) ?? '').trim();
 const fail = (msg) => { console.error(`release: ${msg}`); process.exit(1); };
 
 if (!/^\d+\.\d+\.\d+$/.test(version ?? '')) fail('usage: node scripts/release.mjs <x.y.z> [--push]');
