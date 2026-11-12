@@ -242,9 +242,15 @@ Read this before exposing the server to anyone but yourself.
 
 ```sh
 npm install
-npm test          # node:test, no extra tooling
-npm start         # serve with ./data
+npm test                          # unit + HTTP + CLI tests (node:test)
+npx playwright install chromium   # once, for the browser tests
+npm run test:browser              # gallery and viewer in headless Chromium
+npm run coverage                  # both suites with a coverage report
+npm start                         # serve with ./data
 ```
+
+Playwright is a dev dependency only; `npm ci --omit=dev` (production installs)
+and `npm install -g` (the CLI) don't download it.
 
 The code is small on purpose: `src/store.js` (storage, versions, expiry),
 `src/server.js` (HTTP), `src/render.js` (pages), `src/cli/client.js`
