@@ -50,7 +50,7 @@ e.g. `checkout-redesign-k3f9x2m8q1`.
 Requirements: Node.js 22 or newer, and Tailscale on the same machine.
 
 ```sh
-git clone https://github.com/vladgurovich/tailnet-artifacts.git /opt/tailnet-artifacts
+git clone --branch v0.2.0 https://github.com/vladgurovich/tailnet-artifacts.git /opt/tailnet-artifacts
 cd /opt/tailnet-artifacts && npm ci --omit=dev
 
 export ARTIFACTS_DATA_DIR=/var/lib/tailnet-artifacts
@@ -71,7 +71,7 @@ For a long-running setup (systemd unit, dedicated user, Proxmox container) see
 On any machine that can reach the server:
 
 ```sh
-npm install -g github:vladgurovich/tailnet-artifacts   # provides `artifacts`
+npm install -g git+https://github.com/vladgurovich/tailnet-artifacts.git#v0.2.0   # provides `artifacts`
 mkdir -p ~/.config/tailnet-artifacts
 echo '{"url": "https://artifacts.<tailnet>.ts.net"}' > ~/.config/tailnet-artifacts/config.json
 echo '<token>' > ~/.config/tailnet-artifacts/token && chmod 600 ~/.config/tailnet-artifacts/token
@@ -79,27 +79,29 @@ echo '<token>' > ~/.config/tailnet-artifacts/token && chmod 600 ~/.config/tailne
 
 ```sh
 artifacts publish ./mockup.html --name "Login redesign" --by codex
-artifacts publish ./dist --to login-redesign-k3f9 --note "tighter spacing"
+artifacts publish ./dist --to login-redesign-k3f9x2m8q1 --note "tighter spacing"
 artifacts publish ./screenshot.png --name "Checkout bug" --ttl 30d
 artifacts publish ./notes.md --keep
 artifacts screenshot http://localhost:5173 --mobile --name "Home (mobile)"
 ```
 
-`publish` prints JSON:
+`publish` prints JSON. `warnings` lists problems that don't stop the publish, such as
+root-absolute asset paths in a built app (they're also printed to stderr):
 
 ```json
 {
-  "id": "login-redesign-k3f9",
+  "id": "login-redesign-k3f9x2m8q1",
   "name": "Login redesign",
   "version": 2,
   "kind": "html",
   "expiresAt": "2026-11-19T18:00:00.000Z",
   "links": {
-    "latest": "https://artifacts.example.ts.net/a/login-redesign-k3f9/",
-    "version": "https://artifacts.example.ts.net/a/login-redesign-k3f9/?v=2",
-    "raw": "https://artifacts.example.ts.net/a/login-redesign-k3f9/v/2/",
-    "info": "https://artifacts.example.ts.net/a/login-redesign-k3f9/info"
-  }
+    "latest": "https://artifacts.example.ts.net/a/login-redesign-k3f9x2m8q1/",
+    "version": "https://artifacts.example.ts.net/a/login-redesign-k3f9x2m8q1/?v=2",
+    "raw": "https://artifacts.example.ts.net/a/login-redesign-k3f9x2m8q1/v/2/",
+    "info": "https://artifacts.example.ts.net/a/login-redesign-k3f9x2m8q1/info"
+  },
+  "warnings": []
 }
 ```
 
