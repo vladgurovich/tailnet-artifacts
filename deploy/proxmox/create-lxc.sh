@@ -9,7 +9,7 @@
 set -euo pipefail
 
 REPO="vladgurovich/tailnet-artifacts"
-VERSION="v0.4.0"
+VERSION="v0.5.0"
 CTID=""
 HOSTNAME_="artifacts"
 STORAGE="local-lvm"

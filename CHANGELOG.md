@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 — 2026-11-13
 - **Agent Skill.** `skills/tailnet-artifacts/SKILL.md` teaches agents to publish visual work and reply with the link, following the [Agent Skills](https://agentskills.io) format. It ships with the CLI.
 - `artifacts skill install` puts it in `~/.claude/skills` (Claude Code) and `~/.agents/skills` (Codex, Gemini CLI, GitHub Copilot, Cursor, OpenCode and other Agent Skills clients); `--target` picks one, `--dir` adds any other skills directory. Also `skill status`, `uninstall`, `print` and `path`.
 - `artifacts doctor` reports whether the skill is installed and current.

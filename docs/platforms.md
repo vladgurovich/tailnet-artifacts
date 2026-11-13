@@ -38,7 +38,7 @@ Tailscale, runs `tailscale serve`, and prints your first publish token.
 
 ```sh
 # on the Proxmox host, as root
-curl -fsSLO https://raw.githubusercontent.com/vladgurovich/tailnet-artifacts/v0.4.0/deploy/proxmox/create-lxc.sh
+curl -fsSLO https://raw.githubusercontent.com/vladgurovich/tailnet-artifacts/v0.5.0/deploy/proxmox/create-lxc.sh
 less create-lxc.sh                       # read what it does first
 bash create-lxc.sh --owners you@example.com
 ```
@@ -71,7 +71,7 @@ sidecar runs in userspace networking mode.
 
 1. **Files.** In File Station, create a folder such as `docker/tailnet-artifacts`.
    Download the three files from
-   [`deploy/docker/`](https://github.com/vladgurovich/tailnet-artifacts/tree/v0.4.0/deploy/docker)
+   [`deploy/docker/`](https://github.com/vladgurovich/tailnet-artifacts/tree/v0.5.0/deploy/docker)
    and upload them there, renaming as you go:
    - `compose.yaml` → `docker-compose.yml`
    - `serve.json` (unchanged)
@@ -115,7 +115,7 @@ the same Compose file. The image is published for `linux/amd64` and `linux/arm64
 
 ```sh
 mkdir tailnet-artifacts && cd tailnet-artifacts
-base=https://raw.githubusercontent.com/vladgurovich/tailnet-artifacts/v0.4.0/deploy/docker
+base=https://raw.githubusercontent.com/vladgurovich/tailnet-artifacts/v0.5.0/deploy/docker
 curl -fsSLO $base/compose.yaml
 curl -fsSLO $base/serve.json
 curl -fsSL  $base/.env.example -o .env
