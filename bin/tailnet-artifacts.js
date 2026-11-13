@@ -22,7 +22,7 @@ Setup (client):
   artifacts skill install | status | uninstall   the agent skill that teaches agents to publish:
                   [--target claude|agents] [--dir <skills dir>]
     default targets: claude   ~/.claude/skills (Claude Code)
-                     agents   ~/.agents/skills (Codex, Gemini CLI, Copilot, Cursor, OpenCode, …)
+                     agents   ~/.agents/skills (Codex and other Agent Skills clients)
   artifacts skill print | path                   print the skill, or where the bundled copy is
 
 Publishing (client):

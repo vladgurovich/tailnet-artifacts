@@ -11,8 +11,7 @@ export const SKILL_SOURCE = fileURLToPath(new URL(`../../skills/${SKILL_NAME}/SK
 
 /**
  * User-level skill directories. Claude Code reads its own; `~/.agents/skills` is the
- * shared location read by Codex, Gemini CLI, GitHub Copilot, Cursor, OpenCode and
- * other Agent Skills clients.
+ * shared location read by Codex and other Agent Skills clients.
  */
 export function skillTargets(env = process.env) {
   const home = env.HOME || homedir();

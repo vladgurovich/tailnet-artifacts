@@ -37,6 +37,9 @@ After a visible UI change, regenerate the README images with
   configuration, not code or docs.
 - **Agents are users.** CLI output is JSON with stable fields; errors are JSON on
   stderr with meaningful exit codes. Treat changes to them as breaking.
+- **The agent skill documents the CLI.** When you change commands, flags or exit
+  codes, update `skills/tailnet-artifacts/SKILL.md`; `test/skill.test.js` fails if
+  the skill mentions a command or flag the CLI no longer has.
 
 ## Releases
 

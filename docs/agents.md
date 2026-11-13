@@ -16,15 +16,13 @@ This writes the skill to both user-level skill directories:
 
 | Target | Directory | Read by |
 | --- | --- | --- |
-| `claude` | `~/.claude/skills/` (or `$CLAUDE_CONFIG_DIR/skills/`) | Claude Code; GitHub Copilot and OpenCode also read it |
-| `agents` | `~/.agents/skills/` | The shared Agent Skills location: Codex, Gemini CLI, GitHub Copilot, Cursor, OpenCode and other clients |
+| `claude` | `~/.claude/skills/` (or `$CLAUDE_CONFIG_DIR/skills/`) | Claude Code |
+| `agents` | `~/.agents/skills/` | Codex and other [Agent Skills](https://agentskills.io) clients that use the shared user directory |
 
-- One target only: `--target claude` or `--target agents`.
-- An agent with its own directory: `--dir <its skills directory>` (repeatable), e.g.
-  `--dir ~/.config/goose/skills`.
-- No CLI on the machine where the agent runs: copy the file from `artifacts skill print`,
-  or point a skills installer at this repository; the skill is at the standard path
-  `skills/tailnet-artifacts/`.
+Claude Code and Codex are tested. For an agent that reads skills from somewhere else,
+check its docs for the user-level skills directory and add `--dir <that directory>`
+(repeatable). `--target claude` or `--target agents` installs to one only.
+
 - `artifacts skill status` shows where it's installed and whether it's current;
   `artifacts doctor` warns when it's missing or out of date.
 - After upgrading the CLI, run `artifacts skill install` again.
@@ -55,5 +53,5 @@ network access. In Codex's `workspace-write` sandbox, enable network access
 
 ## Agents without skill support
 
-Paste the body of [`SKILL.md`](../skills/tailnet-artifacts/SKILL.md) (everything
-after the frontmatter) into the agent's instructions file instead.
+Paste the output of `artifacts skill print`, everything after the frontmatter, into
+the agent's instructions file instead of the one line above.

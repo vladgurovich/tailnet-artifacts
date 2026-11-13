@@ -99,10 +99,8 @@ For `artifacts screenshot`, install Chromium once with the command `doctor` prin
 (on Linux, `npx -y playwright@1.65.0 install --with-deps chromium`).
 
 **Agents:** `artifacts skill install` installs an [Agent Skill](https://agentskills.io)
-for Claude Code (`~/.claude/skills`) and for every client that reads `~/.agents/skills`
-(Codex, Gemini CLI, GitHub Copilot, Cursor, OpenCode and others). Add the one line it
-prints to your agent's instructions file, so the agent publishes visual work and
-replies with the link. Details and other agents: [docs/agents.md](docs/agents.md).
+that teaches Claude Code, Codex and other skill-aware agents to publish visual work
+and reply with the link. See [docs/agents.md](docs/agents.md).
 
 ## Publish
 
