@@ -7,6 +7,7 @@ import { Store } from '../src/store.js';
 import { TokenStore, SCOPES, DEFAULT_SCOPE } from '../src/tokens.js';
 import { clientConfig, collectFiles, publish, screenshot, CliError } from '../src/cli/client.js';
 import { login, readToken, doctor, formatDoctor } from '../src/cli/setup.js';
+import { installSkill, uninstallSkill, skillStatus, bundledSkill, SKILL_SOURCE } from '../src/cli/skill.js';
 import { detectTailscaleUrl } from '../src/tailscale.js';
 import { formatBytes } from '../src/util.js';
 
@@ -16,7 +17,13 @@ const HELP = `tailnet-artifacts ${pkg.version} — versioned artifact links for 
 
 Setup (client):
   artifacts login <server-url> [--token-stdin]   save the server URL and a token (prompted)
-  artifacts doctor [--json] [--skip-browser]     check config, server, token, versions, browser
+  artifacts doctor [--json] [--skip-browser]     check config, server, token, versions, browser,
+                                                 agent skill
+  artifacts skill install | status | uninstall   the agent skill that teaches agents to publish:
+                  [--target claude|agents] [--dir <skills dir>]
+    default targets: claude   ~/.claude/skills (Claude Code)
+                     agents   ~/.agents/skills (Codex, Gemini CLI, Copilot, Cursor, OpenCode, …)
+  artifacts skill print | path                   print the skill, or where the bundled copy is
 
 Publishing (client):
   artifacts publish <file|dir> [--name "Title"] [--to <id>] [--note "what changed"]
@@ -75,6 +82,7 @@ async function main(argv) {
   switch (cmd) {
     case 'login': return cmdLogin(rest);
     case 'doctor': return cmdDoctor(rest);
+    case 'skill': return cmdSkill(rest);
     case 'publish': return cmdPublish(rest);
     case 'screenshot': return cmdScreenshot(rest);
     case 'serve': return cmdServe(rest);
@@ -264,6 +272,30 @@ async function cmdLogin(args) {
   const result = await login(positionals[0], { token });
   console.error(`Logged in to ${result.url} as token "${result.token.name}" (${result.token.scope} scope).`);
   console.log(JSON.stringify(result, null, 2));
+}
+
+async function cmdSkill(args) {
+  const { values, positionals } = parseArgs({
+    args,
+    options: { target: { type: 'string', multiple: true }, dir: { type: 'string', multiple: true }, json: { type: 'boolean' } },
+    allowPositionals: true,
+  });
+  const [sub, ...extra] = positionals;
+  if (extra.length) throw usage(`unexpected argument: ${extra[0]}`);
+  const opts = { target: values.target ?? [], dir: values.dir ?? [] };
+  if (sub === 'print') { process.stdout.write(bundledSkill()); return; }
+  if (sub === 'path') { console.log(SKILL_SOURCE); return; }
+  const run = { install: installSkill, uninstall: uninstallSkill, status: skillStatus }[sub];
+  if (!run) throw usage('skill install | status | uninstall | print | path');
+  const results = run(opts);
+  if (values.json) { console.log(JSON.stringify(results, null, 2)); return; }
+  for (const r of results) console.log(`${(r.action ?? r.state).padEnd(10)} ${r.path}  (${r.label})`);
+  if (sub === 'install') {
+    console.error('\nAgents load skills when a task matches, so also add this line to your agent\'s\n'
+      + 'always-on instructions (CLAUDE.md, AGENTS.md, GEMINI.md, …):\n\n'
+      + '  When you build or change anything visual, publish it with the tailnet-artifacts skill and reply with the link.\n');
+  }
+  if (sub === 'status' && results.some((r) => r.state !== 'current')) process.exitCode = 1;
 }
 
 async function cmdDoctor(args) {

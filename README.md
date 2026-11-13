@@ -86,7 +86,8 @@ On each machine where agents run, you need **Node.js 22+**, **git** and
 ```sh
 npm install -g git+https://github.com/vladgurovich/tailnet-artifacts.git#v0.4.0
 artifacts login https://artifacts.<tailnet>.ts.net   # paste the token; it is checked and saved
-artifacts doctor                                     # checks server, token, versions, browser
+artifacts skill install                              # teaches your agents to publish (see below)
+artifacts doctor                                     # checks server, token, versions, skill, browser
 ```
 
 `login` saves the address and token in `~/.config/tailnet-artifacts/`, readable only
@@ -97,8 +98,11 @@ Playwright to check the screenshot browser; add `--skip-browser` to skip that.
 For `artifacts screenshot`, install Chromium once with the command `doctor` prints
 (on Linux, `npx -y playwright@1.65.0 install --with-deps chromium`).
 
-**Agents:** paste [docs/agents.md](docs/agents.md) into `AGENTS.md`, `CLAUDE.md` or
-your agent's equivalent so it publishes visual work and replies with the link.
+**Agents:** `artifacts skill install` installs an [Agent Skill](https://agentskills.io)
+for Claude Code (`~/.claude/skills`) and for every client that reads `~/.agents/skills`
+(Codex, Gemini CLI, GitHub Copilot, Cursor, OpenCode and others). Add the one line it
+prints to your agent's instructions file, so the agent publishes visual work and
+replies with the link. Details and other agents: [docs/agents.md](docs/agents.md).
 
 ## Publish
 

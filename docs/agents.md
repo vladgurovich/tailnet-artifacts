@@ -1,38 +1,59 @@
-# Agent instructions
+# Agent setup
 
-Paste the block below into your agent's instructions file (`AGENTS.md` for Codex,
-`CLAUDE.md` for Claude Code, or the equivalent). Adjust the `--by` value per agent,
-or set `ARTIFACTS_BY` in the agent's environment instead.
+Agents learn to publish from an [Agent Skill](https://agentskills.io):
+[`skills/tailnet-artifacts/SKILL.md`](../skills/tailnet-artifacts/SKILL.md). It ships
+with the CLI, so it always matches the `artifacts` version you have installed.
 
----
+## Install the skill
 
-## Sharing visual work (tailnet-artifacts)
-
-When you build or change anything visual (UI, HTML mockups, charts, diagrams,
-rendered docs) or need to show a screenshot, publish it and give me the link:
+On each publishing machine, after `artifacts login`:
 
 ```sh
-artifacts publish <file-or-dir> --name "<short title>" --by <your agent name> --note "<what this shows>"
+artifacts skill install
 ```
 
-- The command prints JSON. Reply with `links.latest`.
-- While iterating on the same thing, publish new versions to the same artifact
-  with `--to <id>` (the `id` from the first publish) instead of creating new ones.
-  The page I have open updates by itself.
-- Directories need an `index.html`, or a single `.html` file, or `--entry page.html`. Built apps:
-  publish the build output (e.g. `dist/`), not the source tree, and build with
-  relative asset paths (`vite build --base ./`). If `publish` prints a
-  `warning:` about root-absolute paths, rebuild and publish again.
-- Artifacts run sandboxed: `localStorage`, IndexedDB and cookies are unavailable.
-- Dotfiles and `node_modules` are skipped automatically. Don't use
-  `--include-hidden`.
-- On failure the command exits non-zero and prints a JSON error to stderr; read
-  its `message` before retrying. For setup problems (network, token, browser), run
-  `artifacts doctor` and report what it says.
-- Exit code 3 with "publish scope" means the artifact belongs to another token:
-  publish a new artifact instead of `--to`.
-- Screenshots of a running page: `artifacts screenshot <url> --name "<title>"`
-  (add `--mobile` for a 390×844 phone-sized view).
-- Artifacts expire 7 days after the last publish. Use `--keep` only when I ask
-  to keep something.
-- Never publish secrets, credentials, or private customer data.
+This writes the skill to both user-level skill directories:
+
+| Target | Directory | Read by |
+| --- | --- | --- |
+| `claude` | `~/.claude/skills/` (or `$CLAUDE_CONFIG_DIR/skills/`) | Claude Code; GitHub Copilot and OpenCode also read it |
+| `agents` | `~/.agents/skills/` | The shared Agent Skills location: Codex, Gemini CLI, GitHub Copilot, Cursor, OpenCode and other clients |
+
+- One target only: `--target claude` or `--target agents`.
+- An agent with its own directory: `--dir <its skills directory>` (repeatable), e.g.
+  `--dir ~/.config/goose/skills`.
+- No CLI on the machine where the agent runs: copy the file from `artifacts skill print`,
+  or point a skills installer at this repository; the skill is at the standard path
+  `skills/tailnet-artifacts/`.
+- `artifacts skill status` shows where it's installed and whether it's current;
+  `artifacts doctor` warns when it's missing or out of date.
+- After upgrading the CLI, run `artifacts skill install` again.
+- `artifacts skill uninstall` removes it.
+
+Restart running agent sessions to pick up a new skill.
+
+## Add one line to your agent's instructions
+
+Agents load a skill when a task matches its description. To make publishing a habit
+rather than something the agent remembers only sometimes, add this line to the
+always-on instructions file (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`,
+`~/.gemini/GEMINI.md`, or your agent's equivalent):
+
+```md
+When you build or change anything visual, publish it with the tailnet-artifacts skill and reply with the link.
+```
+
+To record which agent published each version without relying on the agent to pass
+`--by`, set `ARTIFACTS_BY` (e.g. `ARTIFACTS_BY=codex`) in that agent's environment.
+
+## Sandboxed agents
+
+The CLI talks to the server over HTTP, so it works inside agent sandboxes that allow
+network access. In Codex's `workspace-write` sandbox, enable network access
+(`[sandbox_workspace_write] network_access = true` in `~/.codex/config.toml`).
+`artifacts doctor` run inside the agent shows whether it can reach the server.
+
+## Agents without skill support
+
+Paste the body of [`SKILL.md`](../skills/tailnet-artifacts/SKILL.md) (everything
+after the frontmatter) into the agent's instructions file instead.

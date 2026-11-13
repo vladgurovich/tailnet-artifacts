@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+- **Agent Skill.** `skills/tailnet-artifacts/SKILL.md` teaches agents to publish visual work and reply with the link, following the [Agent Skills](https://agentskills.io) format. It ships with the CLI.
+- `artifacts skill install` puts it in `~/.claude/skills` (Claude Code) and `~/.agents/skills` (Codex, Gemini CLI, GitHub Copilot, Cursor, OpenCode and other Agent Skills clients); `--target` picks one, `--dir` adds any other skills directory. Also `skill status`, `uninstall`, `print` and `path`.
+- `artifacts doctor` reports whether the skill is installed and current.
+- `docs/agents.md` is now about installing the skill plus one always-on line, instead of a block to paste.
+
 ## 0.4.0 — 2026-11-12
 - **Share** button on every gallery card and in the viewer toolbar, with the platform's standard share icon (box-and-arrow on Apple devices, connected dots elsewhere). Opens the system share sheet via the Web Share API, or copies the link and shows "Link copied". In the viewer it shares the version you're looking at. Icon-only on phones so card actions stay on one row.
 - README: desktop screenshots. `scripts/screenshots.mjs` regenerates all README images from neutral demo content.

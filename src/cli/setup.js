@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync, chmodSync, existsSync } from 'n
 import { join } from 'node:path';
 import { execFile } from 'node:child_process';
 import { configDir, clientConfig, CliError, PLAYWRIGHT_SPEC } from './client.js';
+import { skillCheck } from './skill.js';
 
 const PKG = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
 export const CLIENT_VERSION = PKG.version;
@@ -155,6 +156,9 @@ export async function doctor({ env = process.env, browser = true, fetchImpl } = 
       add('server reachable', 'fail', `${e.message}${/ts\.net/.test(cc.url) ? ' — is Tailscale running on this machine?' : ''}`);
     }
   }
+
+  const sk = skillCheck(env);
+  add('agent skill', sk.status, sk.detail);
 
   if (browser) {
     const b = await browserInstalled(env.ARTIFACTS_PLAYWRIGHT || PLAYWRIGHT_SPEC);
