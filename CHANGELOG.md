@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased
+- **Fix:** at boot the server could start before `tailscaled` was ready, miss its public address, and answer every request with `421 Misdirected Request` until restarted. It now waits up to 60 s for Tailscale to report the address (`ARTIFACTS_TAILSCALE_WAIT`, in seconds; `0` checks once) and gives up at once if the `tailscale` CLI isn't installed. The example systemd unit also starts after `tailscaled.service`.
+
 ## 0.5.0 — 2026-11-13
 - **Agent Skill.** `skills/tailnet-artifacts/SKILL.md` teaches agents to publish visual work and reply with the link, following the [Agent Skills](https://agentskills.io) format. It ships with the CLI.
 - `artifacts skill install` puts it in `~/.claude/skills` (Claude Code) and `~/.agents/skills` (Codex and other Agent Skills clients); `--target` picks one, `--dir` adds any other skills directory. Also `skill status`, `uninstall`, `print` and `path`.

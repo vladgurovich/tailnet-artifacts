@@ -219,3 +219,47 @@ test('doctor CLI: --json output and exit codes', async () => {
   assert.equal(bad.json.ok, false);
   assert.equal(normalizeUrl('https://a.example.ts.net/'), 'https://a.example.ts.net');
 });
+
+// ---- waiting for tailscale at startup ----------------------------------------------
+
+test('waitForTailscaleUrl waits while tailscaled is still starting', async () => {
+  const { waitForTailscaleUrl } = await import('../src/tailscale.js');
+  const d = await tempDir();
+  try {
+    const counter = join(d.dir, 'n');
+    const bin = join(d.dir, 'tailscale');
+    // Fails twice (like tailscaled at boot), then reports the machine's name.
+    await writeFile(bin, `#!/bin/sh
+n=$(cat "${counter}" 2>/dev/null || echo 0); n=$((n+1)); echo $n > "${counter}"
+if [ $n -lt 3 ]; then echo '{"BackendState":"NoState","Self":{"DNSName":""}}'; exit 1; fi
+echo '{"Self":{"DNSName":"artifacts.example.ts.net."},"CertDomains":["artifacts.example.ts.net"]}'
+`);
+    await chmod(bin, 0o755);
+    let waited = 0;
+    const r = await waitForTailscaleUrl({ bin, waitMs: 5000, intervalMs: 50, onWait: () => { waited++; } });
+    assert.equal(r?.url, 'https://artifacts.example.ts.net');
+    assert.equal(waited, 1, 'onWait called once');
+    assert.equal((await readFile(counter, 'utf8')).trim(), '3');
+
+    // Never comes up: gives up after waitMs.
+    await writeFile(counter, '-100');
+    const t0 = Date.now();
+    assert.equal(await waitForTailscaleUrl({ bin, waitMs: 300, intervalMs: 50 }), null);
+    assert.ok(Date.now() - t0 >= 250);
+
+    // CLI not installed: no waiting at all.
+    const t1 = Date.now();
+    assert.equal(await waitForTailscaleUrl({ bin: join(d.dir, 'missing'), waitMs: 5000 }), null);
+    assert.ok(Date.now() - t1 < 1000);
+  } finally {
+    await d.cleanup();
+  }
+});
+
+test('serve rejects a bad ARTIFACTS_TAILSCALE_WAIT', async () => {
+  const r = await new Promise((resolve) => {
+    execFile(process.execPath, [BIN, 'serve'], { env: { ...process.env, ARTIFACTS_TAILSCALE_WAIT: 'soon', ARTIFACTS_PUBLIC_URL: '' } }, (err, stdout, stderr) => resolve({ code: err?.code, stderr }));
+  });
+  assert.equal(r.code, 2);
+  assert.match(r.stderr, /ARTIFACTS_TAILSCALE_WAIT/);
+});

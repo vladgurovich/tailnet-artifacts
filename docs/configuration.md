@@ -39,6 +39,7 @@ Point to the file with `--config file.json` or `ARTIFACTS_CONFIG=file.json`.
 | `ARTIFACTS_CONTENT_ORIGIN` | `contentOrigin` | none | Reserved for a future separate content origin. **Not supported yet; leave unset.** |
 | `ARTIFACTS_LOG_LEVEL` | — | `info` | `debug` logs every request |
 | `ARTIFACTS_TAILSCALE_BIN` | — | `tailscale` | The CLI used to detect the public URL |
+| `ARTIFACTS_TAILSCALE_WAIT` | — | `60` | Seconds to wait at startup for tailscale to report the address (it may still be starting at boot); `0` checks once |
 
 Durations are a number plus `s`, `m`, `h`, `d` or `w` (`90m`, `12h`, `7d`, `2w`).
 Sizes are a number plus `KB`, `MB` or `GB`.

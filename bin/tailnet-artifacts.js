@@ -8,7 +8,7 @@ import { TokenStore, SCOPES, DEFAULT_SCOPE } from '../src/tokens.js';
 import { clientConfig, collectFiles, publish, screenshot, CliError } from '../src/cli/client.js';
 import { login, readToken, doctor, formatDoctor } from '../src/cli/setup.js';
 import { installSkill, uninstallSkill, skillStatus, bundledSkill, SKILL_SOURCE } from '../src/cli/skill.js';
-import { detectTailscaleUrl } from '../src/tailscale.js';
+import { detectTailscaleUrl, waitForTailscaleUrl } from '../src/tailscale.js';
 import { formatBytes } from '../src/util.js';
 
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
@@ -192,7 +192,11 @@ async function cmdServe(args) {
   const { values } = parseArgs({ args, options: { config: { type: 'string' } } });
   let cfg = loadConfig({ file: values.config });
   if (!cfg.publicUrl && cfg.identity === 'tailscale') {
-    const ts = await detectTailscaleUrl();
+    const waitMs = parseWait(process.env.ARTIFACTS_TAILSCALE_WAIT);
+    const ts = await waitForTailscaleUrl({
+      waitMs,
+      onWait: () => defaultLog('info', 'waiting for tailscale to report this machine\'s address', { maxSeconds: waitMs / 1000 }),
+    });
     if (ts) {
       cfg = withPublicUrl(cfg, ts.url);
       defaultLog('info', 'detected public URL from tailscale', { publicUrl: ts.url });
@@ -218,6 +222,12 @@ async function cmdServe(args) {
   };
   process.on('SIGTERM', stop);
   process.on('SIGINT', stop);
+}
+
+function parseWait(v) {
+  if (v == null || v === '') return 60000;
+  if (!/^\d+$/.test(v)) throw usage(`ARTIFACTS_TAILSCALE_WAIT must be a number of seconds, got "${v}"`);
+  return Number(v) * 1000;
 }
 
 async function cmdGc(args) {
