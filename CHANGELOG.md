@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.1 — 2026-11-14
 - **Fix:** at boot the server could start before `tailscaled` was ready, miss its public address, and answer every request with `421 Misdirected Request` until restarted. It now waits up to 60 s for Tailscale to report the address (`ARTIFACTS_TAILSCALE_WAIT`, in seconds; `0` checks once) and gives up at once if the `tailscale` CLI isn't installed. The example systemd unit also starts after `tailscaled.service`.
 
 ## 0.5.0 — 2026-11-13

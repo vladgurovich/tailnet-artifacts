@@ -37,7 +37,7 @@ lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file
 
 ```sh
 useradd --system --home /var/lib/tailnet-artifacts --create-home --shell /usr/sbin/nologin tailnet-artifacts
-git clone --branch v0.5.0 https://github.com/vladgurovich/tailnet-artifacts.git /opt/tailnet-artifacts
+git clone --branch v0.5.1 https://github.com/vladgurovich/tailnet-artifacts.git /opt/tailnet-artifacts
 cd /opt/tailnet-artifacts && npm ci --omit=dev
 cp examples/tailnet-artifacts.env /etc/tailnet-artifacts.env
 chgrp tailnet-artifacts /etc/tailnet-artifacts.env && chmod 640 /etc/tailnet-artifacts.env

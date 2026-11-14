@@ -84,7 +84,7 @@ On each machine where agents run, you need **Node.js 22+**, **git** and
 **Tailscale** signed in to the same tailnet. Then:
 
 ```sh
-npm install -g git+https://github.com/vladgurovich/tailnet-artifacts.git#v0.5.0
+npm install -g git+https://github.com/vladgurovich/tailnet-artifacts.git#v0.5.1
 artifacts login https://artifacts.<tailnet>.ts.net   # paste the token; it is checked and saved
 artifacts skill install                              # teaches your agents to publish (see below)
 artifacts doctor                                     # checks server, token, versions, skill, browser
