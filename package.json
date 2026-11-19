@@ -52,7 +52,7 @@
     "coverage": "node --test --experimental-test-coverage --test-coverage-exclude='test/**' test/*.test.js test/browser/*.test.js"
   },
   "dependencies": {
-    "marked": "18.2.0"
+    "marked": "18.2.1"
   },
   "devDependencies": {
     "playwright": "1.65.0"
