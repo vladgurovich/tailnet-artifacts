@@ -55,6 +55,6 @@
     "marked": "18.2.0"
   },
   "devDependencies": {
-    "playwright": "1.65.0"
+    "playwright": "1.65.1"
   }
 }
